@@ -1,0 +1,72 @@
+/* B2
+ * Decl *   FuncDef *
+ * Func *
+ */   
+const int a=100;
+int b=10;
+
+void mult(int n[][2], int ans[]){
+    if(n[0][0]==1){
+        printf("%d\n",ans[0]);
+        return;
+    }else{
+        ans[0]=ans[0]*n[0][0];
+        n[0][0]=n[0][0]-1;
+        mult(n, ans);
+        return;
+    }
+    return;
+}
+
+int isRunYear(int year){
+    if(year%400==0){
+        return 1;
+    }else{
+        if(year%100==0){
+            return 0;
+        }else{
+            if(year%4==0){
+                return 1;
+            }else{
+                return 0;
+            }
+        }
+        return 0;
+    }
+    return 0;
+}
+
+int plus(int a, int b){
+    return a+b;
+}
+
+int justReturn1(){
+    return 1;
+}
+
+void printSmileFace(){
+    printf(":( )\n");
+    printf(":) ))\n");
+    printf(":) )))\n");
+    printf(":) ))))\n");
+    printf(":) )))))\n");
+}
+
+int main(){
+    printf("20373091\n");
+    const int a[2]={101,101};
+    int b=100;
+    int n[2][2]={{5,1},{a[0],a[1]}};
+    int ans[2]={1,400};
+
+    int ans1=isRunYear(ans[1]);
+    int ans2=justReturn1();
+    int ans3=plus(ans1, ans2);
+  
+    printf("%d %d %d\n",a[0],b,ans1);
+    printf("%d\n", n[1][1]);
+    printf("%d\n", ans[1]);
+    mult(n,ans);
+    printSmileFace();
+    return 0;
+}
