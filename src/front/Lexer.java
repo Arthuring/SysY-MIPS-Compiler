@@ -15,7 +15,8 @@ public class Lexer {
         while (matcher.find()) {
             for (Token.Type t : Token.Type.values()) {
                 if (matcher.group(t.toString()) != null) {
-                    String stringInfo = matcher.group(t.toString()).trim();
+                    String stringInfo = matcher.group(t.toString());
+                    cntLine += stringInfo.chars().boxed().filter(ch -> ch == '\n').count();
                     if (!Token.eat(t)) {
                         tokens.add(new Token(cntLine, t, stringInfo));
                     }
