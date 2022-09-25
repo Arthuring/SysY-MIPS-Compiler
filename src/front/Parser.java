@@ -161,7 +161,7 @@ public class Parser {
             childUnit.add(endUnitBuilder(tokenPackage, Token.Type.ASSIGN));
             childUnit.add(parseInitVal(tokenPackage));
         }
-        return new CompileUnit("VarDecl", childUnit, CompileUnit.Type.VarDecl, false);
+        return new CompileUnit("VarDef", childUnit, CompileUnit.Type.VarDef, false);
     }
 
     public static CompileUnit parseInitVal(TokenPackage tokenPackage) {
@@ -169,10 +169,10 @@ public class Parser {
         if (tokenPackage.getCurToken().type() == Token.Type.LBRACE) {
             childUnit.add(endUnitBuilder(tokenPackage, Token.Type.LBRACE));
             if (tokenPackage.getCurToken().type() != Token.Type.RBRACE) {
-                parseInitVal(tokenPackage);
+                childUnit.add(parseInitVal(tokenPackage));
                 while (tokenPackage.getCurToken().type() == Token.Type.COMMA) {
                     childUnit.add(endUnitBuilder(tokenPackage, Token.Type.COMMA));
-                    parseInitVal(tokenPackage);
+                    childUnit.add(parseInitVal(tokenPackage));
                 }
             }
             childUnit.add(endUnitBuilder(tokenPackage, Token.Type.RBRACE));
@@ -195,7 +195,7 @@ public class Parser {
         } else {
             childUnit.add(endUnitBuilder(tokenPackage, Token.Type.VOIDTK));
         }
-        return new CompileUnit("Exp", childUnit, CompileUnit.Type.Exp, false);
+        return new CompileUnit("FuncType", childUnit, CompileUnit.Type.FuncType, false);
     }
 
     public static CompileUnit parseFuncFParams(TokenPackage tokenPackage) {
@@ -300,7 +300,7 @@ public class Parser {
                 if (tokenPackage.getCurToken().type() == Token.Type.IDENFR) {
                     //preview of Lval = exp
                     int pointer = tokenPackage.getPointer();
-                    parseLval(tokenPackage);
+                    parseLVal(tokenPackage);
                     if (tokenPackage.getCurToken().type() == Token.Type.ASSIGN) {
                         isExp = false;
                     }
@@ -312,7 +312,7 @@ public class Parser {
                     }
                     childUnit.add(endUnitBuilder(tokenPackage, Token.Type.SEMICN));
                 } else {
-                    childUnit.add(parseLval(tokenPackage));
+                    childUnit.add(parseLVal(tokenPackage));
                     childUnit.add(endUnitBuilder(tokenPackage, Token.Type.ASSIGN));
                     if (tokenPackage.getCurToken().type() == Token.Type.GETINTTK) {
                         childUnit.add(endUnitBuilder(tokenPackage, Token.Type.GETINTTK));
@@ -328,7 +328,7 @@ public class Parser {
         return new CompileUnit("Stmt", childUnit, CompileUnit.Type.Stmt, false);
     }
 
-    public static CompileUnit parseLval(TokenPackage tokenPackage) {
+    public static CompileUnit parseLVal(TokenPackage tokenPackage) {
         List<CompileUnit> childUnit = new ArrayList<>();
         childUnit.add(endUnitBuilder(tokenPackage, Token.Type.IDENFR));
         while (tokenPackage.getCurToken().type() == Token.Type.LBRACK) {
@@ -336,7 +336,7 @@ public class Parser {
             childUnit.add(parseExp(tokenPackage));
             childUnit.add(endUnitBuilder(tokenPackage, Token.Type.RBRACK));
         }
-        return new CompileUnit("Lval", childUnit, CompileUnit.Type.Lval, false);
+        return new CompileUnit("LVal", childUnit, CompileUnit.Type.LVal, false);
     }
 
     public static CompileUnit parseCond(TokenPackage tokenPackage) {
@@ -349,6 +349,7 @@ public class Parser {
         List<CompileUnit> childUnit = new ArrayList<>();
         childUnit.add(parseMulExp(tokenPackage));
         while (tokenPackage.getCurToken().type() == Token.Type.PLUS || tokenPackage.getCurToken().type() == Token.Type.MINU) {
+            childUnit.add(new CompileUnit("AddExp", new ArrayList<>(), CompileUnit.Type.AddExp, false));
             childUnit.add(endUnitBuilder(tokenPackage, tokenPackage.getCurToken().type()));
             childUnit.add(parseMulExp(tokenPackage));
         }
@@ -359,6 +360,7 @@ public class Parser {
         List<CompileUnit> childUnit = new ArrayList<>();
         childUnit.add(parseLAndExp(tokenPackage));
         while (tokenPackage.getCurToken().type() == Token.Type.OR) {
+            childUnit.add(new CompileUnit("LOrExp", new ArrayList<>(), CompileUnit.Type.LOrExp, false));
             childUnit.add(endUnitBuilder(tokenPackage, Token.Type.OR));
             childUnit.add(parseLAndExp(tokenPackage));
         }
@@ -374,7 +376,7 @@ public class Parser {
         } else if (tokenPackage.getCurToken().type() == Token.Type.INTCON) {
             childUnit.add(parseNumber(tokenPackage));
         } else {
-            childUnit.add(parseLval(tokenPackage));
+            childUnit.add(parseLVal(tokenPackage));
         }
         return new CompileUnit("PrimaryExp", childUnit, CompileUnit.Type.PrimaryExp, false);
     }
@@ -387,21 +389,23 @@ public class Parser {
 
     public static CompileUnit parseUnaryExp(TokenPackage tokenPackage) {
         List<CompileUnit> childUnit = new ArrayList<>();
-        while (tokenPackage.getCurToken().type() == Token.Type.PLUS ||
+        if (tokenPackage.getCurToken().type() == Token.Type.PLUS ||
                 tokenPackage.getCurToken().type() == Token.Type.MINU ||
                 tokenPackage.getCurToken().type() == Token.Type.NOT) {
-            childUnit.add(endUnitBuilder(tokenPackage, tokenPackage.getCurToken().type()));
-        }
-        if (tokenPackage.sizeRemain() >= 2 && (tokenPackage.getCurToken().type() == Token.Type.IDENFR)
-                && tokenPackage.preview(1).type() == Token.Type.LPARENT) {
-            childUnit.add(endUnitBuilder(tokenPackage, Token.Type.IDENFR));
-            childUnit.add(endUnitBuilder(tokenPackage, Token.Type.LPARENT));
-            if (tokenPackage.getCurToken().type() != Token.Type.RPARENT) {
-                childUnit.add(parseFuncRParams(tokenPackage));
-            }
-            childUnit.add(endUnitBuilder(tokenPackage, Token.Type.RPARENT));
+            childUnit.add(parseUnaryOp(tokenPackage));
+            childUnit.add(parseUnaryExp(tokenPackage));
         } else {
-            childUnit.add(parsePrimaryExp(tokenPackage));
+            if (tokenPackage.sizeRemain() >= 2 && (tokenPackage.getCurToken().type() == Token.Type.IDENFR)
+                    && tokenPackage.preview(1).type() == Token.Type.LPARENT) {
+                childUnit.add(endUnitBuilder(tokenPackage, Token.Type.IDENFR));
+                childUnit.add(endUnitBuilder(tokenPackage, Token.Type.LPARENT));
+                if (tokenPackage.getCurToken().type() != Token.Type.RPARENT) {
+                    childUnit.add(parseFuncRParams(tokenPackage));
+                }
+                childUnit.add(endUnitBuilder(tokenPackage, Token.Type.RPARENT));
+            } else {
+                childUnit.add(parsePrimaryExp(tokenPackage));
+            }
         }
         return new CompileUnit("UnaryExp", childUnit, CompileUnit.Type.UnaryExp, false);
     }
@@ -433,6 +437,7 @@ public class Parser {
         while (tokenPackage.getCurToken().type() == Token.Type.MULT ||
                 tokenPackage.getCurToken().type() == Token.Type.DIV ||
                 tokenPackage.getCurToken().type() == Token.Type.MOD) {
+            childUnit.add(new CompileUnit("MulExp", new ArrayList<>(), CompileUnit.Type.MulExp, false));
             childUnit.add(endUnitBuilder(tokenPackage, new HashSet<>(Arrays.asList(Token.Type.MULT, Token.Type.DIV, Token.Type.MOD))));
             childUnit.add(parseUnaryExp(tokenPackage));
         }
@@ -446,6 +451,7 @@ public class Parser {
                 tokenPackage.getCurToken().type() == Token.Type.GRE ||
                 tokenPackage.getCurToken().type() == Token.Type.GEQ ||
                 tokenPackage.getCurToken().type() == Token.Type.LEQ) {
+            childUnit.add(new CompileUnit("RelExp", new ArrayList<>(), CompileUnit.Type.RelExp, false));
             childUnit.add(endUnitBuilder(tokenPackage, new HashSet<>(Arrays.asList(Token.Type.LSS, Token.Type.GRE, Token.Type.GEQ, Token.Type.LEQ))));
             childUnit.add(parseAddExp(tokenPackage));
         }
@@ -457,6 +463,7 @@ public class Parser {
         childUnit.add(parseRelExp(tokenPackage));
         while (tokenPackage.getCurToken().type() == Token.Type.EQL ||
                 tokenPackage.getCurToken().type() == Token.Type.NEQ) {
+            childUnit.add(new CompileUnit("EqExp", new ArrayList<>(), CompileUnit.Type.EqExp, false));
             childUnit.add(endUnitBuilder(tokenPackage, new HashSet<>(Arrays.asList(Token.Type.EQL, Token.Type.NEQ))));
             childUnit.add(parseRelExp(tokenPackage));
         }
@@ -467,6 +474,7 @@ public class Parser {
         List<CompileUnit> childUnit = new ArrayList<>();
         childUnit.add(parseEqExp(tokenPackage));
         while (tokenPackage.getCurToken().type() == Token.Type.AND) {
+            childUnit.add(new CompileUnit("LAndExp", new ArrayList<>(), CompileUnit.Type.LAndExp, false));
             childUnit.add(endUnitBuilder(tokenPackage, Token.Type.AND));
             childUnit.add(parseEqExp(tokenPackage));
         }

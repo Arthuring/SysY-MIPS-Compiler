@@ -15,7 +15,7 @@ public class CompileUnit {
         CompUnit, Decl, ConstDecl, BType, ConstDef,
         ConstInitVal, VarDecl, VarDef, FuncDef, MainFuncDef, FuncType,
         FuncFParams, FuncFParam, Block, BlockItem, Stmt, Exp, Cond,
-        Lval, PrimaryExp, Number, UnaryExp,
+        LVal, PrimaryExp, Number, UnaryExp,
         InitVal,
         UnaryOp, FuncRParams, MulExp, AddExp, RelExp, EqExp, LAndExp, LOrExp, ConstExp,
         MAINTK, CONSTTK, INTTK, BREAKTK, CONTINUETK,
@@ -54,7 +54,11 @@ public class CompileUnit {
             if (new HashSet<>(Arrays.asList(Type.BType, Type.Decl, Type.BlockItem)).contains(this.type)) {
                 return s;
             } else {
-                return s + "\n<" + type.toString() + ">";
+                if (!s.equals("")) {
+                    return s + "\n<" + type.toString() + ">";
+                } else {
+                    return s + "<" + type.toString() + ">";
+                }
             }
 
         }
