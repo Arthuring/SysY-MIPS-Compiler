@@ -1,4 +1,5 @@
 package front.nodes;
 
-public class ExprNode {
+public interface ExprNode extends StmtNode {
+
 }

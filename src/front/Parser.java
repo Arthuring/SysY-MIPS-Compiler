@@ -1,14 +1,31 @@
 package front;
 
+import exception.CompileExc;
+
 import java.util.*;
 
 public class Parser {
+    private static final List<CompileExc> COMPILE_EXCS = new ArrayList<>();
+
     public static CompileUnit endUnitBuilder(TokenPackage tokenPackage, Token.Type type) {
         if (tokenPackage.getCurToken().type() == type) {
-            CompileUnit compileUnit = new CompileUnit(tokenPackage.getCurToken().stringInfo(), null, CompileUnit.Type.valueOf(type.toString()), true);
+            CompileUnit compileUnit = new CompileUnit(tokenPackage.getCurToken().stringInfo(),
+                    null, CompileUnit.Type.valueOf(type.toString()), true, tokenPackage.getCurToken().line());
             tokenPackage.next();
             return compileUnit;
         } else {
+            if (type == Token.Type.RPARENT) {
+                COMPILE_EXCS.add(new CompileExc(CompileExc.ErrType.EXPECTED_PARENT, tokenPackage.getCurToken().line()));
+                return new CompileUnit(")",
+                        null, CompileUnit.Type.RPARENT, true, tokenPackage.getCurToken().line());
+            } else if (type == Token.Type.RBRACK) {
+                COMPILE_EXCS.add(new CompileExc(CompileExc.ErrType.EXPECTED_BRACK, tokenPackage.getCurToken().line()));
+                return new CompileUnit("]",
+                        null, CompileUnit.Type.RBRACK, true, tokenPackage.getCurToken().line());
+            } else if (type == Token.Type.SEMICN) {
+                COMPILE_EXCS.add(new CompileExc(CompileExc.ErrType.EXPECTED_SEMICN, tokenPackage.getCurToken().line()));
+                return new CompileUnit(";", null, CompileUnit.Type.SEMICN, true, tokenPackage.getCurToken().line());
+            }
             return null;
             //else throw exception
         }
@@ -17,7 +34,8 @@ public class Parser {
     public static CompileUnit endUnitBuilder(TokenPackage tokenPackage, Set<Token.Type> typeSet) {
         if (typeSet.contains(tokenPackage.getCurToken().type())) {
             CompileUnit compileUnit = new CompileUnit(tokenPackage.getCurToken().stringInfo(), null,
-                    CompileUnit.Type.valueOf(tokenPackage.getCurToken().type().toString()), true);
+                    CompileUnit.Type.valueOf(tokenPackage.getCurToken().type().toString()),
+                    true, tokenPackage.getCurToken().line());
             tokenPackage.next();
             return compileUnit;
         } else {
@@ -349,7 +367,13 @@ public class Parser {
         List<CompileUnit> childUnit = new ArrayList<>();
         childUnit.add(parseMulExp(tokenPackage));
         while (tokenPackage.getCurToken().type() == Token.Type.PLUS || tokenPackage.getCurToken().type() == Token.Type.MINU) {
-            childUnit.add(new CompileUnit("AddExp", new ArrayList<>(), CompileUnit.Type.AddExp, false));
+            //            childUnit.add(new CompileUnit("AddExp", new ArrayList<>(), CompileUnit.Type.AddExp, false));
+            //            childUnit.add(endUnitBuilder(tokenPackage, tokenPackage.getCurToken().type()));
+            //            childUnit.add(parseMulExp(tokenPackage));
+            List<CompileUnit> newChild = new ArrayList<>(childUnit);
+            CompileUnit newLayer = new CompileUnit("AddExp", newChild, CompileUnit.Type.AddExp, false);
+            childUnit.clear();
+            childUnit.add(newLayer);
             childUnit.add(endUnitBuilder(tokenPackage, tokenPackage.getCurToken().type()));
             childUnit.add(parseMulExp(tokenPackage));
         }
@@ -360,7 +384,13 @@ public class Parser {
         List<CompileUnit> childUnit = new ArrayList<>();
         childUnit.add(parseLAndExp(tokenPackage));
         while (tokenPackage.getCurToken().type() == Token.Type.OR) {
-            childUnit.add(new CompileUnit("LOrExp", new ArrayList<>(), CompileUnit.Type.LOrExp, false));
+//            childUnit.add(new CompileUnit("LOrExp", new ArrayList<>(), CompileUnit.Type.LOrExp, false));
+//            childUnit.add(endUnitBuilder(tokenPackage, Token.Type.OR));
+//            childUnit.add(parseLAndExp(tokenPackage));
+            List<CompileUnit> newChild = new ArrayList<>(childUnit);
+            CompileUnit newLayer = new CompileUnit("LOrExp", newChild, CompileUnit.Type.LOrExp, false);
+            childUnit.clear();
+            childUnit.add(newLayer);
             childUnit.add(endUnitBuilder(tokenPackage, Token.Type.OR));
             childUnit.add(parseLAndExp(tokenPackage));
         }
@@ -437,8 +467,12 @@ public class Parser {
         while (tokenPackage.getCurToken().type() == Token.Type.MULT ||
                 tokenPackage.getCurToken().type() == Token.Type.DIV ||
                 tokenPackage.getCurToken().type() == Token.Type.MOD) {
-            childUnit.add(new CompileUnit("MulExp", new ArrayList<>(), CompileUnit.Type.MulExp, false));
-            childUnit.add(endUnitBuilder(tokenPackage, new HashSet<>(Arrays.asList(Token.Type.MULT, Token.Type.DIV, Token.Type.MOD))));
+            List<CompileUnit> newChild = new ArrayList<>(childUnit);
+            CompileUnit newLayer = new CompileUnit("MulExp", newChild, CompileUnit.Type.MulExp, false);
+            childUnit.clear();
+            childUnit.add(newLayer);
+            childUnit.add(endUnitBuilder(tokenPackage,
+                    new HashSet<>(Arrays.asList(Token.Type.MULT, Token.Type.DIV, Token.Type.MOD))));
             childUnit.add(parseUnaryExp(tokenPackage));
         }
         return new CompileUnit("MulExp", childUnit, CompileUnit.Type.MulExp, false);
@@ -451,7 +485,13 @@ public class Parser {
                 tokenPackage.getCurToken().type() == Token.Type.GRE ||
                 tokenPackage.getCurToken().type() == Token.Type.GEQ ||
                 tokenPackage.getCurToken().type() == Token.Type.LEQ) {
-            childUnit.add(new CompileUnit("RelExp", new ArrayList<>(), CompileUnit.Type.RelExp, false));
+            // childUnit.add(new CompileUnit("RelExp", new ArrayList<>(), CompileUnit.Type.RelExp, false));
+
+            List<CompileUnit> newChild = new ArrayList<>(childUnit);
+            CompileUnit newLayer = new CompileUnit("RelExp", newChild, CompileUnit.Type.RelExp, false);
+            childUnit.clear();
+            childUnit.add(newLayer);
+
             childUnit.add(endUnitBuilder(tokenPackage, new HashSet<>(Arrays.asList(Token.Type.LSS, Token.Type.GRE, Token.Type.GEQ, Token.Type.LEQ))));
             childUnit.add(parseAddExp(tokenPackage));
         }
@@ -463,7 +503,11 @@ public class Parser {
         childUnit.add(parseRelExp(tokenPackage));
         while (tokenPackage.getCurToken().type() == Token.Type.EQL ||
                 tokenPackage.getCurToken().type() == Token.Type.NEQ) {
-            childUnit.add(new CompileUnit("EqExp", new ArrayList<>(), CompileUnit.Type.EqExp, false));
+            //childUnit.add(new CompileUnit("EqExp", new ArrayList<>(), CompileUnit.Type.EqExp, false));
+            List<CompileUnit> newChild = new ArrayList<>(childUnit);
+            CompileUnit newLayer = new CompileUnit("EqExp", newChild, CompileUnit.Type.EqExp, false);
+            childUnit.clear();
+            childUnit.add(newLayer);
             childUnit.add(endUnitBuilder(tokenPackage, new HashSet<>(Arrays.asList(Token.Type.EQL, Token.Type.NEQ))));
             childUnit.add(parseRelExp(tokenPackage));
         }
@@ -474,7 +518,11 @@ public class Parser {
         List<CompileUnit> childUnit = new ArrayList<>();
         childUnit.add(parseEqExp(tokenPackage));
         while (tokenPackage.getCurToken().type() == Token.Type.AND) {
-            childUnit.add(new CompileUnit("LAndExp", new ArrayList<>(), CompileUnit.Type.LAndExp, false));
+            //childUnit.add(new CompileUnit("LAndExp", new ArrayList<>(), CompileUnit.Type.LAndExp, false));
+            List<CompileUnit> newChild = new ArrayList<>(childUnit);
+            CompileUnit newLayer = new CompileUnit("LAndExp", newChild, CompileUnit.Type.LAndExp, false);
+            childUnit.clear();
+            childUnit.add(newLayer);
             childUnit.add(endUnitBuilder(tokenPackage, Token.Type.AND));
             childUnit.add(parseEqExp(tokenPackage));
         }

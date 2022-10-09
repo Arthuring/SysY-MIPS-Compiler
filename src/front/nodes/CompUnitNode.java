@@ -1,4 +1,4 @@
 package front.nodes;
 
-public class CompUnitNode {
+public class CompUnitNode implements SyntaxNode{
 }

@@ -1,5 +1,6 @@
 package front;
 
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -10,6 +11,7 @@ public class CompileUnit {
     private final Type type;
     private final List<CompileUnit> childUnits;
     private final boolean isEnd;
+    private final Integer lineNo;
 
     public enum Type {
         CompUnit, Decl, ConstDecl, BType, ConstDef,
@@ -42,6 +44,31 @@ public class CompileUnit {
         this.type = type;
         this.childUnits = unitList;
         this.isEnd = isEnd;
+        this.lineNo = null;
+    }
+
+    public CompileUnit(String name, List<CompileUnit> unitList, Type type, boolean isEnd, Integer lineNo) {
+        this.name = name;
+        this.type = type;
+        this.childUnits = unitList;
+        this.isEnd = true;
+        this.lineNo = lineNo;
+    }
+
+    public List<CompileUnit> childUnits() {
+        return childUnits;
+    }
+
+    public Type type() {
+        return type;
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public Integer lineNo() {
+        return lineNo;
     }
 
     @Override

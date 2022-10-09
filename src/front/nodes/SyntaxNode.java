@@ -1,4 +1,6 @@
 package front.nodes;
 
-public interface SyNode {
+public interface SyntaxNode {
+
+
 }
