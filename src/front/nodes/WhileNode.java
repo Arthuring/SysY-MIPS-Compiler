@@ -16,4 +16,12 @@ public class WhileNode implements StmtNode {
     public StmtNode whileStmt() {
         return whileStmt;
     }
+
+    @Override
+    public String toString() {
+        return "WhileNode{\n" +
+                "cond=" + cond +
+                ", \nwhileStmt=" + whileStmt +
+                "\n}";
+    }
 }

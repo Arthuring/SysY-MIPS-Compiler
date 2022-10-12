@@ -58,4 +58,13 @@ public class BinaryExpNode implements ExprNode {
     public ExprNode right() {
         return right;
     }
+
+    @Override
+    public String toString() {
+        return "BinaryExpNode{\n" +
+                "op=" + op +
+                ",\n left=" + left +
+                ",\n right=" + right +
+                "\n}";
+    }
 }

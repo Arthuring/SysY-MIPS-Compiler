@@ -24,4 +24,13 @@ public class LValNode implements ExprNode {
     public String ident() {
         return ident;
     }
+
+    @Override
+    public String toString() {
+        return "LValNode{\n" +
+                "ident='" + ident + '\'' +
+                ", \nline=" + line +
+                ",\n index=" + index +
+                "\n}";
+    }
 }

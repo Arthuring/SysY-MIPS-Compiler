@@ -28,7 +28,8 @@ public class SyntaxTreeBuilder {
         assert (compileUnit.type() == CompileUnit.Type.Decl);
         CompileUnit unit = compileUnit.childUnits().get(0);
         List<CompileUnit> childUnits = unit.childUnits();
-        return new DeclNode(childUnits.get(0).type() == CompileUnit.Type.ConstDecl,
+        CompileUnit.Type type = unit.type() == CompileUnit.Type.ConstDecl ? childUnits.get(1).childUnits().get(0).type() : childUnits.get(0).childUnits().get(0).type();
+        return new DeclNode(unit.type() == CompileUnit.Type.ConstDecl, type,
                 childUnits.stream().filter(x -> x.type() == CompileUnit.Type.ConstDef || x.type() ==
                         CompileUnit.Type.VarDef).map(SyntaxTreeBuilder::buildDefNode).collect(Collectors.toList()));
     }
@@ -56,11 +57,11 @@ public class SyntaxTreeBuilder {
         List<ExprNode> initValueList = new ArrayList<>();
         List<ExprNode> dim = new ArrayList<>();
         for (int i = 1; i < childUnit.size(); i++) {
-            while (childUnit.get(i).type() == CompileUnit.Type.LBRACK) {
+            while (i < childUnit.size() && childUnit.get(i).type() == CompileUnit.Type.LBRACK) {
                 dim.add(buildExprNode(childUnit.get(i + 1)));
                 i += 3;
             }
-            if (childUnit.get(i).type() == CompileUnit.Type.ASSIGN) {
+            if (i < childUnit.size() && childUnit.get(i).type() == CompileUnit.Type.ASSIGN) {
                 Queue<CompileUnit> processQueue = childUnit.get(i + 1).childUnits().stream().
                         filter(x -> x.type() == CompileUnit.Type.InitVal ||
                                 x.type() == CompileUnit.Type.ConstExp ||
@@ -68,7 +69,7 @@ public class SyntaxTreeBuilder {
                                 x.type() == CompileUnit.Type.Exp)
                         .collect(Collectors.toCollection(LinkedList::new));
                 while (!processQueue.isEmpty()) {
-                    CompileUnit u = processQueue.peek();
+                    CompileUnit u = processQueue.poll();
                     if (u.type() == CompileUnit.Type.Exp || u.type() == CompileUnit.Type.ConstExp) {
                         initValueList.add(buildExprNode(u));
                     } else {
@@ -94,13 +95,14 @@ public class SyntaxTreeBuilder {
         List<ExprNode> dimension = new ArrayList<>();
         for (int i = 2; i < childUnits.size(); i++) {
             int dimLayer = 0;
-            while (childUnits.get(i).type() == CompileUnit.Type.LBRACK) {
+            while (i < childUnits.size() && childUnits.get(i).type() == CompileUnit.Type.LBRACK) {
                 if (dimLayer == 0) {
                     dimension.add(new NumberNode(0));
                     i += 2;
                     dimLayer += 1;
                 } else {
                     dimension.add(buildExprNode(childUnits.get(i + 1)));
+                    i += 3;
                 }
             }
         }
@@ -174,7 +176,7 @@ public class SyntaxTreeBuilder {
         List<CompileUnit> childUnits = compileUnit.childUnits();
         ExprNode cond = buildExprNode(childUnits.get(2));
         StmtNode ifStmt = buildStmtNode(childUnits.get(4));
-        if (childUnits.get(5).type() == CompileUnit.Type.ELSETK) {
+        if (childUnits.size() >= 6 && childUnits.get(5).type() == CompileUnit.Type.ELSETK) {
             StmtNode elseStmt = buildStmtNode(childUnits.get(childUnits.size() - 1));
             return new IfNode(cond, ifStmt, elseStmt);
         }
@@ -194,7 +196,7 @@ public class SyntaxTreeBuilder {
         int line = childUnits.get(0).lineNo();
         List<ExprNode> indexes = new ArrayList<>();
         for (int i = 1; i < childUnits.size(); i++) {
-            while (childUnits.get(i).type() == CompileUnit.Type.LBRACK) {
+            while (i < childUnits.size() && childUnits.get(i).type() == CompileUnit.Type.LBRACK) {
                 indexes.add(buildExprNode(childUnits.get(i + 1)));
                 i += 3;
             }

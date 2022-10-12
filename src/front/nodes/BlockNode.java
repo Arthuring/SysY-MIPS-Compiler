@@ -15,8 +15,8 @@ public class BlockNode implements StmtNode {
 
     @Override
     public String toString() {
-        return "BlockNode{" +
+        return "BlockNode{\n" +
                 "blockItemNodes=" + blockItemNodes +
-                '}';
+                "\n}";
     }
 }

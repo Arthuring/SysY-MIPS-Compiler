@@ -12,4 +12,13 @@ public class FuncCallNode implements ExprNode {
         this.line = line;
         this.args = args;
     }
+
+    @Override
+    public String toString() {
+        return "FuncCallNode{\n" +
+                "ident='" + ident + '\'' +
+                ",\n line=" + line +
+                ",\n args=" + args +
+                "\n}";
+    }
 }

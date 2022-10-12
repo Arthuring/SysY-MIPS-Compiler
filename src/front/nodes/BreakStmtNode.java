@@ -9,8 +9,8 @@ public class BreakStmtNode implements StmtNode {
 
     @Override
     public String toString() {
-        return "BreakStmtNode{" +
+        return "BreakStmtNode{\n" +
                 "line=" + line +
-                '}';
+                "\n}";
     }
 }

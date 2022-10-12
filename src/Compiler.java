@@ -1,7 +1,7 @@
 import front.*;
+import front.nodes.CompileUnitNode;
 
 import java.io.*;
-import java.util.Currency;
 import java.util.List;
 
 public class Compiler {
@@ -40,7 +40,16 @@ public class Compiler {
         outputStream.close();
     }
 
-    public static void main(String[] args) {
+    public static void irTest(String inputFile, String outputFile) throws Exception {
+        String sourceCode = input(inputFile);
+        List<Token> tokens = Lexer.tokenize(sourceCode);
+        TokenPackage tokenPackage = new TokenPackage(tokens);
+        CompileUnit compileUnit = Parser.parseCompUnit(tokenPackage);
+        CompileUnitNode compileUnitNode = SyntaxTreeBuilder.buildCompileUnitNode(compileUnit);
+        output(outputFile, compileUnitNode.toString());
+    }
+
+    public static void main(String[] args) throws Exception {
         try {
             parserTest("testfile.txt", "output.txt");
         } catch (Exception e) {

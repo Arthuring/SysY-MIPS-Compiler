@@ -19,9 +19,9 @@ public class AssignNode implements StmtNode {
 
     @Override
     public String toString() {
-        return "AssignNode{" +
+        return "AssignNode{\n" +
                 "lVal=" + lVal +
-                ", exprNode=" + exprNode +
-                '}';
+                ",\n exprNode=" + exprNode +
+                "\n}";
     }
 }

@@ -49,13 +49,13 @@ if __name__ == '__main__':
                 os.system("java -jar SysY-MIPS-Compiler.jar")
                 stdFile = ".\\Syntax-analysis"+ dataDirRoot[16:]
                 stdFile = os.path.join(stdFile, "output"+fileName[8:])
-                ansFile = "ans"+fileName[8:]
+                ansFile = "ans.txt"
                 print(stdFile)
                 os.system("copy "+ stdFile + " " + ansFile)
 
-                if (os.system("fc " + ansFile + " " + myOutFile)):
-                    print("Wrong Answer in " + os.path.join(dataDirRoot, fileName))
-                    exit()
+                # if (os.system("fc " + ansFile + " " + myOutFile)):
+                #     print("Wrong Answer in " + os.path.join(dataDirRoot, fileName))
+                #     exit()
 
                 count = count + 1
 

@@ -28,10 +28,10 @@ public class UnaryExpNode implements ExprNode {
 
     @Override
     public String toString() {
-        return "UnaryExpNode{" +
+        return "UnaryExpNode{\n" +
                 "op=" + op +
-                ", expNode=" + expNode +
-                '}';
+                ",\n expNode=" + expNode +
+                "\n}";
     }
 
     public UnaryOp op() {

@@ -32,4 +32,14 @@ public class FuncParamNode implements SyntaxNode {
     public String ident() {
         return ident;
     }
+
+    @Override
+    public String toString() {
+        return "FuncParamNode{\n" +
+                "type=" + type +
+                ",\n ident='" + ident + '\'' +
+                ",\n line=" + line +
+                ",\n dimension=" + dimension +
+                "\n}";
+    }
 }

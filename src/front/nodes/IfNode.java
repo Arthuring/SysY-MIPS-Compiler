@@ -28,4 +28,13 @@ public class IfNode implements StmtNode {
     public StmtNode elseStmt() {
         return elseStmt;
     }
+
+    @Override
+    public String toString() {
+        return "IfNode{\n" +
+                "cond=" + cond +
+                ",\n ifStmt=" + ifStmt +
+                ",\n elseStmt=" + elseStmt +
+                "\n}";
+    }
 }

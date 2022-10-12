@@ -16,4 +16,12 @@ public class ReturnNode implements StmtNode {
     public ExprNode returnExpr() {
         return returnExpr;
     }
+
+    @Override
+    public String toString() {
+        return "ReturnNode{\n" +
+                "line=" + line +
+                ",\n returnExpr=" + returnExpr +
+                "\n}";
+    }
 }

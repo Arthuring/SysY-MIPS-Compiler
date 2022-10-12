@@ -16,8 +16,9 @@ public class PrintfNode extends FuncCallNode {
 
     @Override
     public String toString() {
-        return "PrintfNode{" +
+        return "PrintfNode{\n" +
+                super.toString() +
                 "formatString='" + formatString + '\'' +
-                '}';
+                "\n}";
     }
 }

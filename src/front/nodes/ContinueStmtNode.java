@@ -1,7 +1,7 @@
 package front.nodes;
 
 public class ContinueStmtNode implements StmtNode {
-    private int line;
+    private final int line;
 
     public ContinueStmtNode(int line) {
         this.line = line;
@@ -9,8 +9,8 @@ public class ContinueStmtNode implements StmtNode {
 
     @Override
     public String toString() {
-        return "ContinueStmtNode{" +
+        return "ContinueStmtNode{\n" +
                 "line=" + line +
-                '}';
+                "\n}";
     }
 }
