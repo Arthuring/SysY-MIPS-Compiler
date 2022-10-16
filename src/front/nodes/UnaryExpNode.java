@@ -24,6 +24,8 @@ public class UnaryExpNode extends ExprNode {
 
 
     public UnaryExpNode(CompileUnit.Type type, ExprNode exprNode) {
+        super.valueType = exprNode.valueType;
+        super.dimension = exprNode.dimension;
         this.op = TYPE_2_OP.get(type);
         this.expNode = exprNode;
     }

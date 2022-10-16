@@ -1,6 +1,7 @@
 package front.nodes;
 
 import exception.CompileExc;
+import front.TableEntry;
 
 import java.util.List;
 
@@ -8,7 +9,7 @@ public class PrintfNode extends FuncCallNode {
     private final String formatString;
 
     public PrintfNode(int line, String formatString, List<ExprNode> args) {
-        super("printf", line, args);
+        super("printf", line, args, TableEntry.ValueType.VOID);
         this.formatString = formatString;
     }
 

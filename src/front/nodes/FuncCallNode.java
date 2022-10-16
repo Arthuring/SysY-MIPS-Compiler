@@ -1,5 +1,7 @@
 package front.nodes;
 
+import front.TableEntry;
+
 import java.util.List;
 
 public class FuncCallNode extends ExprNode {
@@ -7,7 +9,9 @@ public class FuncCallNode extends ExprNode {
     private final int line;
     private final List<ExprNode> args;
 
-    public FuncCallNode(String ident, int line, List<ExprNode> args) {
+    public FuncCallNode(String ident, int line, List<ExprNode> args, TableEntry.ValueType type) {
+        super.valueType = type;
+        super.dimension = 0;
         this.ident = ident;
         this.line = line;
         this.args = args;

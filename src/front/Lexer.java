@@ -25,6 +25,7 @@ public class Lexer {
             put("main", Token.Type.MAINTK);
             put("int", Token.Type.INTTK);
             put("if", Token.Type.IFTK);
+            put("else", Token.Type.ELSETK);
             put("while", Token.Type.WHILETK);
             put("break", Token.Type.BREAKTK);
             put("continue", Token.Type.CONTINUETK);

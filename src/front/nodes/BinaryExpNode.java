@@ -1,6 +1,7 @@
 package front.nodes;
 
 import front.CompileUnit;
+import front.TableEntry;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,12 +36,18 @@ public class BinaryExpNode extends ExprNode {
     private final ExprNode right;
 
     public BinaryExpNode(ExprNode left, BinaryOp op, ExprNode right) {
+        super.valueType = (left.valueType == TableEntry.ValueType.INT && right.valueType == TableEntry.ValueType.INT) ?
+                TableEntry.ValueType.INT : TableEntry.ValueType.VOID;
+        super.dimension = Math.max(left.dimension, right.dimension);
         this.op = op;
         this.left = left;
         this.right = right;
     }
 
     public BinaryExpNode(ExprNode left, CompileUnit.Type type, ExprNode right) {
+        super.valueType = (left.valueType == TableEntry.ValueType.INT && right.valueType == TableEntry.ValueType.INT) ?
+                TableEntry.ValueType.INT : TableEntry.ValueType.VOID;
+        super.dimension = Math.max(left.dimension, right.dimension);
         this.op = TYPE_2_OP.get(type);
         this.left = left;
         this.right = right;

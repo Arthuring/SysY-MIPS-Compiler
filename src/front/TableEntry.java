@@ -13,7 +13,6 @@ public class TableEntry {
     public enum ValueType {
         INT,
         VOID,
-        INVALID
     }
 
     public enum RefType {

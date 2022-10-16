@@ -7,7 +7,8 @@ public class LValNode extends ExprNode {
     private final int line;
     private final List<ExprNode> index;
 
-    public LValNode(String ident, int line, List<ExprNode> index) {
+    public LValNode(String ident, int line, List<ExprNode> index, int dimension) {
+        super.dimension = dimension - index.size();
         this.ident = ident;
         this.line = line;
         this.index = index;

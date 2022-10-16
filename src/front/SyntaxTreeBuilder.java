@@ -202,7 +202,7 @@ public class SyntaxTreeBuilder {
                 .map(SyntaxTreeBuilder::buildBlockItemNode).collect(Collectors.toList()), currentBlock);
 
         List<BlockItemNode> blockItemNodes = blockNode.blockItemNodes();
-        if (currentBlock == BlockNode.BlockType.FUNC && currentFunc.returnType() == FuncEntry.ReturnType.VOID) {
+        if (currentBlock == BlockNode.BlockType.FUNC && currentFunc.returnType() == TableEntry.ValueType.VOID) {
             for (BlockItemNode blockItemNode : blockItemNodes) {
                 if (blockItemNode instanceof ReturnNode) {
                     ReturnNode returnNode = (ReturnNode) blockItemNode;
@@ -211,7 +211,7 @@ public class SyntaxTreeBuilder {
                     }
                 }
             }
-        } else if (currentBlock == BlockNode.BlockType.FUNC && currentFunc.returnType() != FuncEntry.ReturnType.VOID) {
+        } else if (currentBlock == BlockNode.BlockType.FUNC && currentFunc.returnType() != TableEntry.ValueType.VOID) {
             BlockItemNode blockItemNode = blockItemNodes.get(blockItemNodes.size() - 1);
             if (!(blockItemNode instanceof ReturnNode)) {
                 errors.add(new CompileExc(CompileExc.ErrType.MISSING_RET, compileUnits.get(compileUnits.size() - 1).lineNo()));
@@ -350,10 +350,13 @@ public class SyntaxTreeBuilder {
         }
 
         TableEntry tableEntry = currentTable.getSymbol(ident);
+        int dimension = indexes.size();
         if (tableEntry == null) {
             errors.add(new CompileExc(CompileExc.ErrType.UNDECL, line));
+        } else {
+            dimension = tableEntry.dimension.size();
         }
-        return new LValNode(ident, line, indexes);
+        return new LValNode(ident, line, indexes, dimension);
     }
 
     public static ExprNode buildExprNode(CompileUnit compileUnit) {
@@ -431,17 +434,19 @@ public class SyntaxTreeBuilder {
                     map(SyntaxTreeBuilder::buildExprNode).collect(Collectors.toList()));
         }
         TableEntry tableEntry = currentTable.getSymbol(ident);
+        TableEntry.ValueType valueType = TableEntry.ValueType.INT;
         if (tableEntry != null || !funcTable.containsKey(ident)) {
             errors.add(new CompileExc(CompileExc.ErrType.UNDECL, line));
         } else {
             FuncEntry funcEntry = funcTable.get(ident);
+            valueType = funcEntry.returnType();
             if (funcEntry.args().size() != args.size()) {
                 errors.add(new CompileExc(CompileExc.ErrType.ARG_NUM_MISMATCH, line));
             } else {
-                //TODO
+                //TODO: 函数参数类型不对应检查
             }
         }
-        FuncCallNode funcCallNode = new FuncCallNode(ident, line, args);
+        FuncCallNode funcCallNode = new FuncCallNode(ident, line, args, valueType);
         return funcCallNode;
     }
 }

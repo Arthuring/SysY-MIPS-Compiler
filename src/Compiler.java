@@ -73,7 +73,7 @@ public class Compiler {
 
     public static void main(String[] args) throws Exception {
 
-            tokenizeTest("testfile.txt", "output.txt");
+            irTest("testfile.txt", "output.txt");
 
     }
 }

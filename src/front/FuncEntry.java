@@ -9,28 +9,18 @@ import java.util.List;
 import java.util.Map;
 
 public class FuncEntry {
-    public enum ReturnType {
-        INT, VOID
-    }
-
-    private static final Map<CompileUnit.Type, ReturnType> TO_RETURN_TYPE = new HashMap<CompileUnit.Type, ReturnType>() {
-        {
-            put(CompileUnit.Type.INTTK, ReturnType.INT);
-            put(CompileUnit.Type.VOIDTK, ReturnType.VOID);
-        }
-    };
 
     private final String name;
     private final List<TableEntry> args = new ArrayList<>();
     private final Map<String, TableEntry> name2entry = new HashMap<>();
     private final boolean isMain;
-    private final ReturnType returnType;
+    private final TableEntry.ValueType returnType;
 
-    public ReturnType returnType() {
+    public TableEntry.ValueType returnType() {
         return returnType;
     }
 
-    public FuncEntry(String name, ReturnType returnType) {
+    public FuncEntry(String name, TableEntry.ValueType returnType) {
         this.name = name;
         this.returnType = returnType;
         this.isMain = false;
@@ -60,13 +50,13 @@ public class FuncEntry {
 
     public FuncEntry() {
         this.name = "main";
-        this.returnType = ReturnType.INT;
+        this.returnType = TableEntry.ValueType.INT;
         this.isMain = true;
     }
 
     public FuncEntry(String name, CompileUnit.Type type) {
         this.name = name;
-        this.returnType = TO_RETURN_TYPE.get(type);
+        this.returnType = TableEntry.TO_VALUE_TYPE.get(type);
         this.isMain = name.equals("main");
     }
 }
