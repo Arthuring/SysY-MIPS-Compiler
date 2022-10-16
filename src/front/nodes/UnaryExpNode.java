@@ -1,11 +1,12 @@
 package front.nodes;
 
 import front.CompileUnit;
+import front.TableEntry;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class UnaryExpNode implements ExprNode {
+public class UnaryExpNode extends ExprNode {
     public enum UnaryOp {
         PLUS, MINU, NOT
     }
@@ -20,6 +21,7 @@ public class UnaryExpNode implements ExprNode {
 
     private final UnaryOp op;
     private final ExprNode expNode;
+
 
     public UnaryExpNode(CompileUnit.Type type, ExprNode exprNode) {
         this.op = TYPE_2_OP.get(type);

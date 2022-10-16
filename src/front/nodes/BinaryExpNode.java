@@ -6,7 +6,7 @@ import front.CompileUnit;
 import java.util.HashMap;
 import java.util.Map;
 
-public class BinaryExpNode implements ExprNode {
+public class BinaryExpNode extends ExprNode {
     public enum BinaryOp {
         ADD, SUB, MUL, DIV, MOD,
         LEQ, GEQ, EQL, NEQ,

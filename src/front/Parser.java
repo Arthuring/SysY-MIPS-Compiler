@@ -5,7 +5,7 @@ import exception.CompileExc;
 import java.util.*;
 
 public class Parser {
-    private static final List<CompileExc> COMPILE_EXCS = new ArrayList<>();
+    public static final List<CompileExc> COMPILE_EXCS = new ArrayList<>();
 
     public static CompileUnit endUnitBuilder(TokenPackage tokenPackage, Token.Type type) {
         if (tokenPackage.getCurToken().type() == type) {
@@ -15,16 +15,16 @@ public class Parser {
             return compileUnit;
         } else {
             if (type == Token.Type.RPARENT) {
-                COMPILE_EXCS.add(new CompileExc(CompileExc.ErrType.EXPECTED_PARENT, tokenPackage.getCurToken().line()));
+                COMPILE_EXCS.add(new CompileExc(CompileExc.ErrType.EXPECTED_PARENT, tokenPackage.preview(-1).line()));
                 return new CompileUnit(")",
-                        null, CompileUnit.Type.RPARENT, true, tokenPackage.getCurToken().line());
+                        null, CompileUnit.Type.RPARENT, true, tokenPackage.preview(-1).line());
             } else if (type == Token.Type.RBRACK) {
-                COMPILE_EXCS.add(new CompileExc(CompileExc.ErrType.EXPECTED_BRACK, tokenPackage.getCurToken().line()));
+                COMPILE_EXCS.add(new CompileExc(CompileExc.ErrType.EXPECTED_BRACK, tokenPackage.preview(-1).line()));
                 return new CompileUnit("]",
-                        null, CompileUnit.Type.RBRACK, true, tokenPackage.getCurToken().line());
+                        null, CompileUnit.Type.RBRACK, true, tokenPackage.preview(-1).line());
             } else if (type == Token.Type.SEMICN) {
-                COMPILE_EXCS.add(new CompileExc(CompileExc.ErrType.EXPECTED_SEMICN, tokenPackage.getCurToken().line()));
-                return new CompileUnit(";", null, CompileUnit.Type.SEMICN, true, tokenPackage.getCurToken().line());
+                COMPILE_EXCS.add(new CompileExc(CompileExc.ErrType.EXPECTED_SEMICN, tokenPackage.preview(-1).line()));
+                return new CompileUnit(";", null, CompileUnit.Type.SEMICN, true, tokenPackage.preview(-1).line());
             }
             return null;
             //else throw exception
@@ -384,9 +384,6 @@ public class Parser {
         List<CompileUnit> childUnit = new ArrayList<>();
         childUnit.add(parseLAndExp(tokenPackage));
         while (tokenPackage.getCurToken().type() == Token.Type.OR) {
-//            childUnit.add(new CompileUnit("LOrExp", new ArrayList<>(), CompileUnit.Type.LOrExp, false));
-//            childUnit.add(endUnitBuilder(tokenPackage, Token.Type.OR));
-//            childUnit.add(parseLAndExp(tokenPackage));
             List<CompileUnit> newChild = new ArrayList<>(childUnit);
             CompileUnit newLayer = new CompileUnit("LOrExp", newChild, CompileUnit.Type.LOrExp, false);
             childUnit.clear();
@@ -485,8 +482,6 @@ public class Parser {
                 tokenPackage.getCurToken().type() == Token.Type.GRE ||
                 tokenPackage.getCurToken().type() == Token.Type.GEQ ||
                 tokenPackage.getCurToken().type() == Token.Type.LEQ) {
-            // childUnit.add(new CompileUnit("RelExp", new ArrayList<>(), CompileUnit.Type.RelExp, false));
-
             List<CompileUnit> newChild = new ArrayList<>(childUnit);
             CompileUnit newLayer = new CompileUnit("RelExp", newChild, CompileUnit.Type.RelExp, false);
             childUnit.clear();
@@ -503,7 +498,6 @@ public class Parser {
         childUnit.add(parseRelExp(tokenPackage));
         while (tokenPackage.getCurToken().type() == Token.Type.EQL ||
                 tokenPackage.getCurToken().type() == Token.Type.NEQ) {
-            //childUnit.add(new CompileUnit("EqExp", new ArrayList<>(), CompileUnit.Type.EqExp, false));
             List<CompileUnit> newChild = new ArrayList<>(childUnit);
             CompileUnit newLayer = new CompileUnit("EqExp", newChild, CompileUnit.Type.EqExp, false);
             childUnit.clear();
@@ -518,7 +512,6 @@ public class Parser {
         List<CompileUnit> childUnit = new ArrayList<>();
         childUnit.add(parseEqExp(tokenPackage));
         while (tokenPackage.getCurToken().type() == Token.Type.AND) {
-            //childUnit.add(new CompileUnit("LAndExp", new ArrayList<>(), CompileUnit.Type.LAndExp, false));
             List<CompileUnit> newChild = new ArrayList<>(childUnit);
             CompileUnit newLayer = new CompileUnit("LAndExp", newChild, CompileUnit.Type.LAndExp, false);
             childUnit.clear();

@@ -47,7 +47,8 @@ if __name__ == '__main__':
 
                 os.system("copy " + os.path.join(dataDirRoot, fileName) + " testfile.txt")
                 os.system("java -jar SysY-MIPS-Compiler.jar")
-                stdFile = ".\\Syntax-analysis"+ dataDirRoot[16:]
+                #stdFile = ".\\Syntax-analysis"+ dataDirRoot[16:]
+                stdFile = dataDirRoot.replace("testfiles-only","Lexical-analysis")
                 stdFile = os.path.join(stdFile, "output"+fileName[8:])
                 ansFile = "ans.txt"
                 print(stdFile)

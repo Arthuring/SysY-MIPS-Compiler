@@ -17,6 +17,22 @@ public class DefNode implements SyntaxNode {
         this.initValues = initValues;
     }
 
+    public List<ExprNode> dimension() {
+        return dimension;
+    }
+
+    public List<ExprNode> initValues() {
+        return initValues;
+    }
+
+    public int line() {
+        return line;
+    }
+
+    public String ident() {
+        return ident;
+    }
+
     @Override
     public String toString() {
         return "DefNode{\n" +

@@ -1,47 +1,79 @@
 package front;
 
+import exception.CompileExc;
+import front.nodes.DefNode;
+import front.nodes.ExprNode;
+import front.nodes.FuncParamNode;
+import front.nodes.NumberNode;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public class TableEntry {
     public enum ValueType {
         INT,
-        INT_ARR,
         VOID,
         INVALID
     }
 
-    public enum SymbolType {
-        CONST, VAR, FUNC, PARAM
+    public enum RefType {
+        ITEM, ARRAY, POINTER
     }
 
-    public SymbolType symbolType;
+    public static final Map<CompileUnit.Type, ValueType> TO_VALUE_TYPE = new HashMap<CompileUnit.Type, ValueType>() {
+        {
+            put(CompileUnit.Type.INTTK, ValueType.INT);
+            put(CompileUnit.Type.VOIDTK, ValueType.VOID);
+        }
+    };
+
+    public RefType refType;
     public ValueType valueType;
     public String name;
-    public Integer value;
-    public int dimension;
-    public int dim0Size;
-    public int dim1Size;
+    public ExprNode initValue;
+    public List<ExprNode> initValueList;
+    public List<ExprNode> dimension;
     public int level;
-    public long addr;
-    public int size;
+    public final boolean isConst;
 
-    public TableEntry(SymbolType symbolType, ValueType valueType, String name, Integer value,
-                      int dimension, int dim0Size, int dim1Size, int level, int addr, int size) {
-        this.symbolType = symbolType;
+    public TableEntry(RefType symbolType, ValueType valueType, String name, Integer initValue, boolean isConst,
+                      int level) {
+        this.refType = symbolType;
         this.valueType = valueType;
         this.name = name;
-        this.value = value;
-        this.dimension = dimension;
-        this.dim0Size = dim0Size;
-        this.dim1Size = dim1Size;
+        this.initValue = new NumberNode(initValue);
+        this.isConst = isConst;
         this.level = level;
-        this.addr = addr;
-        this.size = size;
     }
 
-    public TableEntry(SymbolType symbolType, ValueType valueType, String name, Integer value, int level) {
-        this.symbolType = symbolType;
-        this.valueType = valueType;
-        this.name = name;
-        this.value = value;
+    public TableEntry(DefNode defNode, boolean isConst, int level, CompileUnit.Type type) {
+        this.isConst = isConst;
+        this.dimension = defNode.dimension();
+        this.name = defNode.ident();
+        if (defNode.dimension().size() == 0) {
+            this.refType = RefType.ITEM;
+            if (defNode.initValues().size() > 0) {
+                this.initValue = defNode.initValues().get(0);
+            }
+        } else {
+            this.refType = RefType.ARRAY;
+            this.initValueList = defNode.initValues();
+        }
         this.level = level;
+        this.valueType = TO_VALUE_TYPE.get(type);
+    }
+
+    public TableEntry(FuncParamNode funcParamNode) {
+        this.isConst = false;
+        this.dimension = funcParamNode.dimension();
+        this.name = funcParamNode.ident();
+        this.level = 1;
+        if (funcParamNode.dimension().size() == 0) {
+            this.refType = RefType.ITEM;
+        } else {
+            this.refType = RefType.ARRAY;
+        }
+        this.valueType = TO_VALUE_TYPE.get(funcParamNode.type());
     }
 }

@@ -7,6 +7,10 @@ public class BreakStmtNode implements StmtNode {
         this.line = line;
     }
 
+    public int line() {
+        return line;
+    }
+
     @Override
     public String toString() {
         return "BreakStmtNode{\n" +

@@ -1,6 +1,6 @@
 package front.nodes;
 
-public class NumberNode implements ExprNode {
+public class NumberNode extends ExprNode {
     private final int number;
 
     public NumberNode(int number) {

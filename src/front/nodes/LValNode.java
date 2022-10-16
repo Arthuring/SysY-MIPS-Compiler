@@ -2,7 +2,7 @@ package front.nodes;
 
 import java.util.List;
 
-public class LValNode implements ExprNode {
+public class LValNode extends ExprNode {
     private final String ident;
     private final int line;
     private final List<ExprNode> index;

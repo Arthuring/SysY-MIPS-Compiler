@@ -2,7 +2,7 @@ package front.nodes;
 
 import java.util.List;
 
-public class FuncCallNode implements ExprNode {
+public class FuncCallNode extends ExprNode {
     private final String ident;
     private final int line;
     private final List<ExprNode> args;
@@ -11,6 +11,18 @@ public class FuncCallNode implements ExprNode {
         this.ident = ident;
         this.line = line;
         this.args = args;
+    }
+
+    public int line() {
+        return line;
+    }
+
+    public String ident() {
+        return ident;
+    }
+
+    public List<ExprNode> args() {
+        return args;
     }
 
     @Override

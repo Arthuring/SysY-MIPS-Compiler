@@ -7,6 +7,10 @@ public class ContinueStmtNode implements StmtNode {
         this.line = line;
     }
 
+    public int line() {
+        return line;
+    }
+
     @Override
     public String toString() {
         return "ContinueStmtNode{\n" +

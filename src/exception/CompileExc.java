@@ -3,7 +3,7 @@ package exception;
 import java.util.HashMap;
 import java.util.Map;
 
-public class CompileExc extends Exception {
+public class CompileExc extends Exception implements Comparable<CompileExc> {
     public enum ErrCode {
         a, b, c, d, e, f, g, h, i, j, k, l, m
     }
@@ -70,5 +70,10 @@ public class CompileExc extends Exception {
 
     public String toString() {
         return this.lineNo + " " + TYPE_2_CODE.get(this.errType).toString();
+    }
+
+    @Override
+    public int compareTo(CompileExc o) {
+        return this.lineNo - o.lineNo;
     }
 }

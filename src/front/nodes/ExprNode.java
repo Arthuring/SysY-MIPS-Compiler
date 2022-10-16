@@ -1,5 +1,7 @@
 package front.nodes;
 
-public interface ExprNode extends StmtNode {
+import front.TableEntry;
 
+public abstract class ExprNode implements StmtNode {
+    private TableEntry.ValueType valueType;
 }
