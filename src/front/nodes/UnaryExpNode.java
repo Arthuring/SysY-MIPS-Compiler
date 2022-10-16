@@ -1,7 +1,7 @@
 package front.nodes;
 
 import front.CompileUnit;
-import front.TableEntry;
+
 
 import java.util.HashMap;
 import java.util.Map;

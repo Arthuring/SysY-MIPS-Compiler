@@ -1,10 +1,36 @@
 package front;
 
 import exception.CompileExc;
-import front.nodes.*;
-import javafx.scene.control.Tab;
+import front.nodes.AssignNode;
+import front.nodes.BinaryExpNode;
+import front.nodes.BlockItemNode;
+import front.nodes.BlockNode;
+import front.nodes.BreakStmtNode;
+import front.nodes.CompileUnitNode;
+import front.nodes.ContinueStmtNode;
+import front.nodes.DeclNode;
+import front.nodes.DefNode;
+import front.nodes.EmptyStmtNode;
+import front.nodes.ExprNode;
+import front.nodes.FuncCallNode;
+import front.nodes.FuncDefNode;
+import front.nodes.FuncParamNode;
+import front.nodes.GetintNode;
+import front.nodes.IfNode;
+import front.nodes.LValNode;
+import front.nodes.NumberNode;
+import front.nodes.PrintfNode;
+import front.nodes.ReturnNode;
+import front.nodes.StmtNode;
+import front.nodes.UnaryExpNode;
+import front.nodes.WhileNode;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Queue;
 import java.util.stream.Collectors;
 
 public class SyntaxTreeBuilder {

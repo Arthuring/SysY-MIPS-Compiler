@@ -1,6 +1,5 @@
 package front;
 
-import java.io.LineNumberReader;
 import java.util.List;
 
 public class TokenPackage {

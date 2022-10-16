@@ -1,6 +1,5 @@
 package front.nodes;
 
-import exception.CompileExc;
 import front.CompileUnit;
 
 import java.util.HashMap;

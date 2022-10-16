@@ -1,6 +1,5 @@
 package front;
 
-import exception.CompileExc;
 import front.nodes.DefNode;
 import front.nodes.ExprNode;
 import front.nodes.FuncParamNode;
