@@ -2,7 +2,7 @@ import exception.CompileExc;
 import front.CompileUnit;
 import front.Lexer;
 import front.Parser;
-import front.SyntaxTreeBuilder;
+import front.SemanticChecker;
 import front.Token;
 import front.TokenPackage;
 import front.nodes.CompileUnitNode;
@@ -68,8 +68,8 @@ public class Compiler {
         TokenPackage tokenPackage = new TokenPackage(tokens);
         CompileUnit compileUnit = Parser.parseCompUnit(tokenPackage);
         Set<CompileExc> errs = new HashSet<>(Parser.COMPILE_EXCS);
-        CompileUnitNode compileUnitNode = SyntaxTreeBuilder.buildCompileUnitNode(compileUnit);
-        errs.addAll(SyntaxTreeBuilder.getERROR());
+        CompileUnitNode compileUnitNode = SemanticChecker.buildCompileUnitNode(compileUnit);
+        errs.addAll(SemanticChecker.getError());
         List<CompileExc> excs = new ArrayList<>(errs);
         output(outputFile, compileUnitNode.toString(), excs);
     }

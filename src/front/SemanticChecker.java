@@ -33,20 +33,16 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.stream.Collectors;
 
-public class SyntaxTreeBuilder {
+public class SemanticChecker {
     private static SymbolTable currentTable = SymbolTable.globalTable();
-    private static Map<String, FuncEntry> funcTable = new HashMap<>();
-    private static List<CompileExc> ERROR = new ArrayList<>();
+    private static final Map<String, FuncEntry> funcTable = new HashMap<>();
+    private static final List<CompileExc> ERROR = new ArrayList<>();
     private static FuncEntry currentFunc = null;
     private static int depth = 0;
     private static BlockNode.BlockType currentBlock = BlockNode.BlockType.BASIC;
     private static int cycleDepth = 0;
 
-    public SymbolTable currentTable() {
-        return currentTable;
-    }
-
-    public static List<CompileExc> getERROR() {
+    public static List<CompileExc> getError() {
         return ERROR;
     }
 
@@ -54,7 +50,7 @@ public class SyntaxTreeBuilder {
         assert compileUnit.type() == CompileUnit.Type.CompUnit;
         List<DeclNode> declNodes = new ArrayList<>();
         List<FuncDefNode> funcDefNodes = new ArrayList<>();
-        FuncDefNode mainFuncDef = null;
+        FuncDefNode mainFuncDef;
         List<CompileUnit> childUnits = compileUnit.childUnits();
         for (CompileUnit childUnit : childUnits) {
             if (childUnit.type() == CompileUnit.Type.MainFuncDef) {
@@ -69,20 +65,18 @@ public class SyntaxTreeBuilder {
         return new CompileUnitNode(declNodes, funcDefNodes, mainFuncDef);
     }
 
-    public static void checkFuncArg(String name, int line) throws CompileExc {
-        if (currentFunc != null && currentFunc.name2entry().containsKey(name) && depth == 1) {
-            throw new CompileExc(CompileExc.ErrType.REDEF, line);
-        }
-    }
-
     public static DeclNode buildDeclNode(CompileUnit compileUnit) {
         assert (compileUnit.type() == CompileUnit.Type.Decl);
         CompileUnit unit = compileUnit.childUnits().get(0);
         List<CompileUnit> childUnits = unit.childUnits();
-        CompileUnit.Type type = unit.type() == CompileUnit.Type.ConstDecl ? childUnits.get(1).childUnits().get(0).type() : childUnits.get(0).childUnits().get(0).type();
+        CompileUnit.Type type = unit.type() == CompileUnit.Type.ConstDecl ?
+                childUnits.get(1).childUnits().get(0).type() :
+                childUnits.get(0).childUnits().get(0).type();
         DeclNode declNode = new DeclNode(unit.type() == CompileUnit.Type.ConstDecl, type,
-                childUnits.stream().filter(x -> x.type() == CompileUnit.Type.ConstDef || x.type() ==
-                        CompileUnit.Type.VarDef).map(SyntaxTreeBuilder::buildDefNode).collect(Collectors.toList()));
+                childUnits.stream().filter(x -> x.type() == CompileUnit.Type.ConstDef ||
+                                x.type() == CompileUnit.Type.VarDef)
+                        .map(SemanticChecker::buildDefNode)
+                        .collect(Collectors.toList()));
         List<DefNode> defNodeList = declNode.defNodeList();
         //add symbols to table
         for (DefNode defNode : defNodeList) {
@@ -110,8 +104,9 @@ public class SyntaxTreeBuilder {
         final int line = childUnits.get(1).lineNo();
         List<FuncParamNode> funcParamNodes = new ArrayList<>();
         if (childUnits.get(3).type() == CompileUnit.Type.FuncFParams) {
-            funcParamNodes.addAll(childUnits.get(3).childUnits().stream().filter(x -> x.type() == CompileUnit.Type.FuncFParam)
-                    .map(SyntaxTreeBuilder::buildFuncParamNode).collect(Collectors.toList()));
+            funcParamNodes.addAll(childUnits.get(3).childUnits().stream().
+                    filter(x -> x.type() == CompileUnit.Type.FuncFParam)
+                    .map(SemanticChecker::buildFuncParamNode).collect(Collectors.toList()));
         }
         //build a func entry
         FuncEntry funcEntry = new FuncEntry(funcName, funcType);
@@ -144,7 +139,8 @@ public class SyntaxTreeBuilder {
     }
 
     public static DefNode buildDefNode(CompileUnit compileUnit) {
-        assert (compileUnit.type() == CompileUnit.Type.ConstDef || compileUnit.type() == CompileUnit.Type.VarDef);
+        assert (compileUnit.type() == CompileUnit.Type.ConstDef ||
+                compileUnit.type() == CompileUnit.Type.VarDef);
         CompileUnit identUnit = compileUnit.childUnits().get(0);
         List<CompileUnit> childUnit = compileUnit.childUnits();
         List<ExprNode> initValueList = new ArrayList<>();
@@ -216,28 +212,19 @@ public class SyntaxTreeBuilder {
         List<CompileUnit> compileUnits = compileUnit.childUnits();
         BlockNode blockNode = new BlockNode(compileUnits.stream().
                 filter(x -> x.type() == CompileUnit.Type.BlockItem)
-                .map(SyntaxTreeBuilder::buildBlockItemNode).collect(Collectors.toList()), currentBlock);
+                .map(SemanticChecker::buildBlockItemNode)
+                .collect(Collectors.toList()), currentBlock);
 
         List<BlockItemNode> blockItemNodes = blockNode.blockItemNodes();
-        //check for return in void
-//        if (currentBlock == BlockNode.BlockType.FUNC && currentFunc.returnType() == TableEntry.ValueType.VOID) {
-//            for (BlockItemNode blockItemNode : blockItemNodes) {
-//                if (blockItemNode instanceof ReturnNode) {
-//                    ReturnNode returnNode = (ReturnNode) blockItemNode;
-//                    if (returnNode.returnExpr() != null) {
-//                        if (returnNode.returnExpr().valueType != TableEntry.ValueType.VOID) {
-//                            ERROR.add(new CompileExc(CompileExc.ErrType.RET_TYPE_MISMATCH, returnNode.line()));
-//                        }
-//                    }
-//                }
-//            }
-//        } else
-        if (currentBlock == BlockNode.BlockType.FUNC && currentFunc.returnType() != TableEntry.ValueType.VOID) {
+        if (currentBlock == BlockNode.BlockType.FUNC &&
+                currentFunc.returnType() != TableEntry.ValueType.VOID) {
 
             if (depth == 1 &&
                     (blockItemNodes.size() == 0 ||
-                            !(blockItemNodes.get(blockItemNodes.size() - 1) instanceof ReturnNode))) {
-                ERROR.add(new CompileExc(CompileExc.ErrType.MISSING_RET, compileUnits.get(compileUnits.size() - 1).lineNo()));
+                            !(blockItemNodes.get(blockItemNodes.size() - 1)
+                                    instanceof ReturnNode))) {
+                ERROR.add(new CompileExc(CompileExc.ErrType.MISSING_RET,
+                        compileUnits.get(compileUnits.size() - 1).lineNo()));
             }
         }
 
@@ -288,7 +275,7 @@ public class SyntaxTreeBuilder {
                             childUnits.get(2).name(),
                             childUnits.stream()
                                     .filter(x -> x.type() == CompileUnit.Type.Exp)
-                                    .map(SyntaxTreeBuilder::buildExprNode)
+                                    .map(SemanticChecker::buildExprNode)
                                     .collect(Collectors.toList())
                     );
                     try {
@@ -324,7 +311,8 @@ public class SyntaxTreeBuilder {
             }
             return assignNode;
         }
-        AssignNode assignNode = new AssignNode(buildLValNode(childUnit.get(0)), buildExprNode(childUnit.get(2)));
+        AssignNode assignNode = new AssignNode(buildLValNode(childUnit.get(0)),
+                buildExprNode(childUnit.get(2)));
         TableEntry tableEntry = currentTable.getSymbol(assignNode.lVal().ident());
         if (tableEntry != null && tableEntry.isConst) {
             ERROR.add(new CompileExc(CompileExc.ErrType.CHANGE_CONST, assignNode.lVal().line()));
@@ -350,15 +338,6 @@ public class SyntaxTreeBuilder {
         StmtNode whileStmt = buildStmtNode(childUnits.get(childUnits.size() - 1));
         cycleDepth -= 1;
         return new WhileNode(cond, whileStmt);
-    }
-
-    public static TableEntry getFuncArg(String name) {
-        if (currentFunc != null) {
-            if (currentFunc.name2entry().containsKey(name)) {
-                return currentFunc.name2entry().get(name);
-            }
-        }
-        return null;
     }
 
     public static LValNode buildLValNode(CompileUnit compileUnit) {
@@ -401,13 +380,15 @@ public class SyntaxTreeBuilder {
                 if (childUnits.size() == 1) {
                     return buildExprNode(childUnits.get(0));
                 } else {
-                    return new BinaryExpNode(buildExprNode(childUnits.get(0)), childUnits.get(1).type(), buildExprNode(childUnits.get(2)));
+                    return new BinaryExpNode(buildExprNode(childUnits.get(0)),
+                            childUnits.get(1).type(), buildExprNode(childUnits.get(2)));
                 }
             case UnaryExp:
                 if (childUnits.size() == 1) {
                     return buildExprNode(childUnits.get(0));
                 } else if (childUnits.get(0).type() == CompileUnit.Type.UnaryOp) {
-                    return new UnaryExpNode(childUnits.get(0).childUnits().get(0).type(), buildExprNode(childUnits.get(1)));
+                    return new UnaryExpNode(childUnits.get(0).childUnits().get(0).type(),
+                            buildExprNode(childUnits.get(1)));
                 } else {
                     return buildFuncCallNode(compileUnit);
                 }
@@ -447,7 +428,8 @@ public class SyntaxTreeBuilder {
         List<CompileUnit> childUnit = compileUnit.childUnits();
         int line = childUnit.get(0).lineNo();
         ReturnNode returnNode = new ReturnNode(line, buildExprNode(childUnit.get(1)));
-        if (currentBlock == BlockNode.BlockType.FUNC && currentFunc.returnType() == TableEntry.ValueType.VOID) {
+        if (currentBlock == BlockNode.BlockType.FUNC &&
+                currentFunc.returnType() == TableEntry.ValueType.VOID) {
             if (returnNode.returnExpr() != null) {
                 if (returnNode.returnExpr().valueType != TableEntry.ValueType.VOID) {
                     ERROR.add(new CompileExc(CompileExc.ErrType.RET_TYPE_MISMATCH, returnNode.line()));
@@ -465,7 +447,7 @@ public class SyntaxTreeBuilder {
         if (childUnit.size() > 3 && childUnit.get(2).type() == CompileUnit.Type.FuncRParams) {
             args.addAll(childUnit.get(2).childUnits().stream().
                     filter(x -> x.type() == CompileUnit.Type.Exp).
-                    map(SyntaxTreeBuilder::buildExprNode).collect(Collectors.toList()));
+                    map(SemanticChecker::buildExprNode).collect(Collectors.toList()));
         }
         //find table for callee func
         TableEntry tableEntry = currentTable.getSymbol(ident);
