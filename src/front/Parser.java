@@ -297,7 +297,10 @@ public class Parser {
                 break;
             case RETURNTK:
                 childUnit.add(endUnitBuilder(tokenPackage, Token.Type.RETURNTK));
-                if (tokenPackage.getCurToken().type() != Token.Type.SEMICN) {
+                if (tokenPackage.getCurToken().type() == Token.Type.INTCON ||
+                        tokenPackage.getCurToken().type() == Token.Type.IDENFR ||
+                        tokenPackage.getCurToken().type() == Token.Type.PLUS ||
+                        tokenPackage.getCurToken().type() == Token.Type.MINU) {
                     childUnit.add(parseExp(tokenPackage));
                 }
                 childUnit.add(endUnitBuilder(tokenPackage, Token.Type.SEMICN));
@@ -426,7 +429,10 @@ public class Parser {
                     && tokenPackage.preview(1).type() == Token.Type.LPARENT) {
                 childUnit.add(endUnitBuilder(tokenPackage, Token.Type.IDENFR));
                 childUnit.add(endUnitBuilder(tokenPackage, Token.Type.LPARENT));
-                if (tokenPackage.getCurToken().type() != Token.Type.RPARENT) {
+                if (tokenPackage.getCurToken().type() == Token.Type.INTCON ||
+                tokenPackage.getCurToken().type() == Token.Type.IDENFR ||
+                tokenPackage.getCurToken().type() == Token.Type.PLUS ||
+                tokenPackage.getCurToken().type() == Token.Type.MINU) {
                     childUnit.add(parseFuncRParams(tokenPackage));
                 }
                 childUnit.add(endUnitBuilder(tokenPackage, Token.Type.RPARENT));

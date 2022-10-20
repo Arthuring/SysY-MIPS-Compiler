@@ -2,6 +2,7 @@ package exception;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public class CompileExc extends Exception implements Comparable<CompileExc> {
     public enum ErrCode {
@@ -75,5 +76,18 @@ public class CompileExc extends Exception implements Comparable<CompileExc> {
     @Override
     public int compareTo(CompileExc o) {
         return this.lineNo - o.lineNo;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        CompileExc that = (CompileExc) o;
+        return lineNo == that.lineNo && errType == that.errType;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(errType, lineNo);
     }
 }

@@ -13,7 +13,9 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class Compiler {
     public static String input(String inputFile) throws Exception {
@@ -41,7 +43,7 @@ public class Compiler {
 
     public static void parserTest(String inputFile, String outputFile) throws Exception {
         String sourceCode = input(inputFile);
-        List<Token> tokens = Lexer.tokenize(sourceCode);
+        List<Token> tokens = Lexer.tokenizeAutomata(sourceCode);
         TokenPackage tokenPackage = new TokenPackage(tokens);
         CompileUnit compileUnit = Parser.parseCompUnit(tokenPackage);
         output(outputFile, compileUnit.toString(), Collections.emptyList());
@@ -61,19 +63,20 @@ public class Compiler {
     }
 
     public static void irTest(String inputFile, String outputFile) throws Exception {
-        List<CompileExc> errs = new ArrayList<>();
         String sourceCode = input(inputFile);
         List<Token> tokens = Lexer.tokenize(sourceCode);
         TokenPackage tokenPackage = new TokenPackage(tokens);
         CompileUnit compileUnit = Parser.parseCompUnit(tokenPackage);
-        errs.addAll(Parser.COMPILE_EXCS);
+        Set<CompileExc> errs = new HashSet<>(Parser.COMPILE_EXCS);
         CompileUnitNode compileUnitNode = SyntaxTreeBuilder.buildCompileUnitNode(compileUnit);
-        output(outputFile, compileUnitNode.toString(), errs);
+        errs.addAll(SyntaxTreeBuilder.getERROR());
+        List<CompileExc> excs = new ArrayList<>(errs);
+        output(outputFile, compileUnitNode.toString(), excs);
     }
 
     public static void main(String[] args) throws Exception {
 
-            irTest("testfile.txt", "output.txt");
+        irTest("testfile.txt", "output.txt");
 
     }
 }

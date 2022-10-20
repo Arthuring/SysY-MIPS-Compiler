@@ -24,12 +24,15 @@ public class PrintfNode extends FuncCallNode {
     }
 
     public void checkFormatString() throws CompileExc {
-        for (int i = 0; i < formatString.length(); i++) {
+        for (int i = 1; i < formatString.length() - 1; i++) {
             int asc = (int) formatString.charAt(i);
-            if (!(asc == 32 || asc == 33 || (asc >= 40 && asc <= 126))) {
+            if (asc == 92 && (i == formatString.length() - 2 || formatString.charAt(i + 1) != 'n')) {
                 throw new CompileExc(CompileExc.ErrType.ILLEGAL_CHAR, super.line());
             }
-            if (asc == 92 && (i == formatString.length() - 1 || formatString.charAt(i + 1) != 'n')) {
+            if (asc == 37 && (i == formatString.length() - 2 || formatString.charAt(i + 1) != 'd')) {
+                throw new CompileExc(CompileExc.ErrType.ILLEGAL_CHAR, super.line());
+            }
+            if (!(asc == 32 || asc == 33 || asc == 37 || (asc >= 40 && asc <= 126))) {
                 throw new CompileExc(CompileExc.ErrType.ILLEGAL_CHAR, super.line());
             }
         }

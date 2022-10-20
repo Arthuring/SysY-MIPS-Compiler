@@ -1,5 +1,7 @@
 package front.nodes;
 
+import front.TableEntry;
+
 import java.util.List;
 
 public class LValNode extends ExprNode {
@@ -7,8 +9,9 @@ public class LValNode extends ExprNode {
     private final int line;
     private final List<ExprNode> index;
 
-    public LValNode(String ident, int line, List<ExprNode> index, int dimension) {
+    public LValNode(String ident, int line, List<ExprNode> index, int dimension, TableEntry.ValueType valueType) {
         super.dimension = dimension - index.size();
+        super.valueType = valueType;
         this.ident = ident;
         this.line = line;
         this.index = index;

@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 public class SyntaxTreeBuilder {
     private static SymbolTable currentTable = SymbolTable.globalTable();
     private static Map<String, FuncEntry> funcTable = new HashMap<>();
-    private static List<CompileExc> errors = new ArrayList<>();
+    private static List<CompileExc> ERROR = new ArrayList<>();
     private static FuncEntry currentFunc = null;
     private static int depth = 0;
     private static BlockNode.BlockType currentBlock = BlockNode.BlockType.BASIC;
@@ -46,12 +46,17 @@ public class SyntaxTreeBuilder {
         return currentTable;
     }
 
+    public static List<CompileExc> getERROR() {
+        return ERROR;
+    }
+
     public static CompileUnitNode buildCompileUnitNode(CompileUnit compileUnit) {
         assert compileUnit.type() == CompileUnit.Type.CompUnit;
         List<DeclNode> declNodes = new ArrayList<>();
         List<FuncDefNode> funcDefNodes = new ArrayList<>();
         FuncDefNode mainFuncDef = null;
-        for (CompileUnit childUnit : compileUnit.childUnits()) {
+        List<CompileUnit> childUnits = compileUnit.childUnits();
+        for (CompileUnit childUnit : childUnits) {
             if (childUnit.type() == CompileUnit.Type.MainFuncDef) {
                 break;
             } else if (childUnit.type() == CompileUnit.Type.FuncDef) {
@@ -60,7 +65,7 @@ public class SyntaxTreeBuilder {
                 declNodes.add(buildDeclNode(childUnit));
             }
         }
-        mainFuncDef = buildFuncDefNode(compileUnit.childUnits().get(compileUnit.childUnits().size() - 1));
+        mainFuncDef = buildFuncDefNode(childUnits.get(childUnits.size() - 1));
         return new CompileUnitNode(declNodes, funcDefNodes, mainFuncDef);
     }
 
@@ -79,6 +84,7 @@ public class SyntaxTreeBuilder {
                 childUnits.stream().filter(x -> x.type() == CompileUnit.Type.ConstDef || x.type() ==
                         CompileUnit.Type.VarDef).map(SyntaxTreeBuilder::buildDefNode).collect(Collectors.toList()));
         List<DefNode> defNodeList = declNode.defNodeList();
+        //add symbols to table
         for (DefNode defNode : defNodeList) {
             try {
                 if (currentTable.isGlobalTable() && funcTable.containsKey(defNode.ident())) {
@@ -86,7 +92,7 @@ public class SyntaxTreeBuilder {
                 }
                 currentTable.addVarSymbol(defNode, depth, declNode.isConst(), declNode.getType());
             } catch (CompileExc e) {
-                errors.add(e);
+                ERROR.add(e);
             }
 
         }
@@ -97,7 +103,9 @@ public class SyntaxTreeBuilder {
         assert (compileUnit.type() == CompileUnit.Type.FuncDef ||
                 compileUnit.type() == CompileUnit.Type.MainFuncDef);
         List<CompileUnit> childUnits = compileUnit.childUnits();
-        final CompileUnit.Type funcType = childUnits.get(0).type();
+        final CompileUnit.Type funcType = compileUnit.type() == CompileUnit.Type.FuncDef ?
+                childUnits.get(0).childUnits().get(0).type() :
+                childUnits.get(0).type();
         final String funcName = childUnits.get(1).name();
         final int line = childUnits.get(1).lineNo();
         List<FuncParamNode> funcParamNodes = new ArrayList<>();
@@ -105,16 +113,23 @@ public class SyntaxTreeBuilder {
             funcParamNodes.addAll(childUnits.get(3).childUnits().stream().filter(x -> x.type() == CompileUnit.Type.FuncFParam)
                     .map(SyntaxTreeBuilder::buildFuncParamNode).collect(Collectors.toList()));
         }
+        //build a func entry
         FuncEntry funcEntry = new FuncEntry(funcName, funcType);
+        //add arg to func entry
         for (FuncParamNode funcParamNode : funcParamNodes) {
             try {
                 funcEntry.addArg(funcParamNode);
             } catch (CompileExc e) {
-                errors.add(e);
+                ERROR.add(e);
             }
         }
+        //check if redefine with var
+        if (currentTable.getSymbol(funcName) != null) {
+            ERROR.add(new CompileExc(CompileExc.ErrType.REDEF, line));
+        }
+        //check if redefine with func
         if (funcTable.containsKey(funcName)) {
-            errors.add(new CompileExc(CompileExc.ErrType.REDEF, line));
+            ERROR.add(new CompileExc(CompileExc.ErrType.REDEF, line));
         } else {
             funcTable.put(funcName, funcEntry);
         }
@@ -167,7 +182,7 @@ public class SyntaxTreeBuilder {
     public static FuncParamNode buildFuncParamNode(CompileUnit compileUnit) {
         assert (compileUnit.type() == CompileUnit.Type.FuncFParam);
         List<CompileUnit> childUnits = compileUnit.childUnits();
-        CompileUnit.Type type = childUnits.get(0).type();
+        CompileUnit.Type type = childUnits.get(0).childUnits().get(0).type();
         String paraName = childUnits.get(1).name();
         int line = childUnits.get(1).lineNo();
         List<ExprNode> dimension = new ArrayList<>();
@@ -188,9 +203,11 @@ public class SyntaxTreeBuilder {
     }
 
     public static BlockNode buildBlockNode(CompileUnit compileUnit) {
+        //new layer for symbolTable and depth
         SymbolTable temp = currentTable;
         depth += 1;
         currentTable = new SymbolTable(temp, currentFunc.name() + depth);
+
         if (depth == 1) {
             for (TableEntry tableEntry : currentFunc.args()) {
                 currentTable.addVarSymbol(tableEntry);
@@ -202,22 +219,29 @@ public class SyntaxTreeBuilder {
                 .map(SyntaxTreeBuilder::buildBlockItemNode).collect(Collectors.toList()), currentBlock);
 
         List<BlockItemNode> blockItemNodes = blockNode.blockItemNodes();
-        if (currentBlock == BlockNode.BlockType.FUNC && currentFunc.returnType() == TableEntry.ValueType.VOID) {
-            for (BlockItemNode blockItemNode : blockItemNodes) {
-                if (blockItemNode instanceof ReturnNode) {
-                    ReturnNode returnNode = (ReturnNode) blockItemNode;
-                    if (returnNode.returnExpr() != null) {
-                        //TODO
-                    }
-                }
-            }
-        } else if (currentBlock == BlockNode.BlockType.FUNC && currentFunc.returnType() != TableEntry.ValueType.VOID) {
-            BlockItemNode blockItemNode = blockItemNodes.get(blockItemNodes.size() - 1);
-            if (!(blockItemNode instanceof ReturnNode)) {
-                errors.add(new CompileExc(CompileExc.ErrType.MISSING_RET, compileUnits.get(compileUnits.size() - 1).lineNo()));
+        //check for return in void
+//        if (currentBlock == BlockNode.BlockType.FUNC && currentFunc.returnType() == TableEntry.ValueType.VOID) {
+//            for (BlockItemNode blockItemNode : blockItemNodes) {
+//                if (blockItemNode instanceof ReturnNode) {
+//                    ReturnNode returnNode = (ReturnNode) blockItemNode;
+//                    if (returnNode.returnExpr() != null) {
+//                        if (returnNode.returnExpr().valueType != TableEntry.ValueType.VOID) {
+//                            ERROR.add(new CompileExc(CompileExc.ErrType.RET_TYPE_MISMATCH, returnNode.line()));
+//                        }
+//                    }
+//                }
+//            }
+//        } else
+        if (currentBlock == BlockNode.BlockType.FUNC && currentFunc.returnType() != TableEntry.ValueType.VOID) {
+
+            if (depth == 1 &&
+                    (blockItemNodes.size() == 0 ||
+                            !(blockItemNodes.get(blockItemNodes.size() - 1) instanceof ReturnNode))) {
+                ERROR.add(new CompileExc(CompileExc.ErrType.MISSING_RET, compileUnits.get(compileUnits.size() - 1).lineNo()));
             }
         }
 
+        // recover symbolTable and depth
         currentTable = temp;
         depth -= 1;
         return blockNode;
@@ -247,13 +271,13 @@ public class SyntaxTreeBuilder {
                 case CONTINUETK:
                     ContinueStmtNode continueStmtNode = buildContinueStmtNode(compileUnit);
                     if (cycleDepth == 0) {
-                        errors.add(new CompileExc(CompileExc.ErrType.NOT_IN_LOOP, continueStmtNode.line()));
+                        ERROR.add(new CompileExc(CompileExc.ErrType.NOT_IN_LOOP, continueStmtNode.line()));
                     }
                     return continueStmtNode;
                 case BREAKTK:
                     BreakStmtNode breakStmtNode = buildBreakStmtNode(compileUnit);
                     if (cycleDepth == 0) {
-                        errors.add(new CompileExc(CompileExc.ErrType.NOT_IN_LOOP, breakStmtNode.line()));
+                        ERROR.add(new CompileExc(CompileExc.ErrType.NOT_IN_LOOP, breakStmtNode.line()));
                     }
                     return breakStmtNode;
                 case RETURNTK:
@@ -270,12 +294,12 @@ public class SyntaxTreeBuilder {
                     try {
                         printfNode.checkArgNum();
                     } catch (CompileExc e) {
-                        errors.add(e);
+                        ERROR.add(e);
                     }
                     try {
                         printfNode.checkFormatString();
                     } catch (CompileExc e) {
-                        errors.add(e);
+                        ERROR.add(e);
                     }
                     return printfNode;
                 case SEMICN:
@@ -296,14 +320,14 @@ public class SyntaxTreeBuilder {
                     new GetintNode(childUnit.get(2).lineNo()));
             TableEntry tableEntry = currentTable.getSymbol(assignNode.lVal().ident());
             if (tableEntry != null && tableEntry.isConst) {
-                errors.add(new CompileExc(CompileExc.ErrType.CHANGE_CONST, assignNode.lVal().line()));
+                ERROR.add(new CompileExc(CompileExc.ErrType.CHANGE_CONST, assignNode.lVal().line()));
             }
             return assignNode;
         }
         AssignNode assignNode = new AssignNode(buildLValNode(childUnit.get(0)), buildExprNode(childUnit.get(2)));
         TableEntry tableEntry = currentTable.getSymbol(assignNode.lVal().ident());
         if (tableEntry != null && tableEntry.isConst) {
-            errors.add(new CompileExc(CompileExc.ErrType.CHANGE_CONST, assignNode.lVal().line()));
+            ERROR.add(new CompileExc(CompileExc.ErrType.CHANGE_CONST, assignNode.lVal().line()));
         }
         return assignNode;
     }
@@ -350,13 +374,15 @@ public class SyntaxTreeBuilder {
         }
 
         TableEntry tableEntry = currentTable.getSymbol(ident);
+        TableEntry.ValueType valueType = TableEntry.ValueType.INT;
         int dimension = indexes.size();
         if (tableEntry == null) {
-            errors.add(new CompileExc(CompileExc.ErrType.UNDECL, line));
+            ERROR.add(new CompileExc(CompileExc.ErrType.UNDECL, line));
         } else {
             dimension = tableEntry.dimension.size();
+            valueType = tableEntry.valueType;
         }
-        return new LValNode(ident, line, indexes, dimension);
+        return new LValNode(ident, line, indexes, dimension, valueType);
     }
 
     public static ExprNode buildExprNode(CompileUnit compileUnit) {
@@ -420,7 +446,15 @@ public class SyntaxTreeBuilder {
     public static ReturnNode buildReturnNode(CompileUnit compileUnit) {
         List<CompileUnit> childUnit = compileUnit.childUnits();
         int line = childUnit.get(0).lineNo();
-        return new ReturnNode(line, buildExprNode(childUnit.get(1)));
+        ReturnNode returnNode = new ReturnNode(line, buildExprNode(childUnit.get(1)));
+        if (currentBlock == BlockNode.BlockType.FUNC && currentFunc.returnType() == TableEntry.ValueType.VOID) {
+            if (returnNode.returnExpr() != null) {
+                if (returnNode.returnExpr().valueType != TableEntry.ValueType.VOID) {
+                    ERROR.add(new CompileExc(CompileExc.ErrType.RET_TYPE_MISMATCH, returnNode.line()));
+                }
+            }
+        }
+        return returnNode;
     }
 
     public static FuncCallNode buildFuncCallNode(CompileUnit compileUnit) {
@@ -433,20 +467,28 @@ public class SyntaxTreeBuilder {
                     filter(x -> x.type() == CompileUnit.Type.Exp).
                     map(SyntaxTreeBuilder::buildExprNode).collect(Collectors.toList()));
         }
+        //find table for callee func
         TableEntry tableEntry = currentTable.getSymbol(ident);
         TableEntry.ValueType valueType = TableEntry.ValueType.INT;
         if (tableEntry != null || !funcTable.containsKey(ident)) {
-            errors.add(new CompileExc(CompileExc.ErrType.UNDECL, line));
+            ERROR.add(new CompileExc(CompileExc.ErrType.UNDECL, line));
         } else {
             FuncEntry funcEntry = funcTable.get(ident);
             valueType = funcEntry.returnType();
             if (funcEntry.args().size() != args.size()) {
-                errors.add(new CompileExc(CompileExc.ErrType.ARG_NUM_MISMATCH, line));
+                ERROR.add(new CompileExc(CompileExc.ErrType.ARG_NUM_MISMATCH, line));
             } else {
-                //TODO: 函数参数类型不对应检查
+                for (int i = 0; i < args.size(); i++) {
+                    TableEntry funcArg = funcEntry.args().get(i);
+                    ExprNode arg = args.get(i);
+                    if (funcArg.valueType != arg.valueType) {
+                        ERROR.add(new CompileExc(CompileExc.ErrType.ARG_TYPE_MISMATCH, line));
+                    } else if (funcArg.dimension.size() != arg.dimension) {
+                        ERROR.add(new CompileExc(CompileExc.ErrType.ARG_TYPE_MISMATCH, line));
+                    }
+                }
             }
         }
-        FuncCallNode funcCallNode = new FuncCallNode(ident, line, args, valueType);
-        return funcCallNode;
+        return new FuncCallNode(ident, line, args, valueType);
     }
 }
