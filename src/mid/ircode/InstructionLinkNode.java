@@ -1,6 +1,6 @@
 package mid.ircode;
 
-public abstract class InstructionLinkNode extends User {
+public class InstructionLinkNode extends User {
     private InstructionLinkNode prev = null;
     private InstructionLinkNode next = null;
 

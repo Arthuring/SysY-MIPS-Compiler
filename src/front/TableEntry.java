@@ -4,12 +4,14 @@ import front.nodes.DefNode;
 import front.nodes.ExprNode;
 import front.nodes.FuncParamNode;
 import front.nodes.NumberNode;
+import mid.ircode.Operand;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class TableEntry {
+public class TableEntry implements Operand {
     public enum ValueType {
         INT,
         VOID,
@@ -26,13 +28,13 @@ public class TableEntry {
         }
     };
 
-    public RefType refType;
-    public ValueType valueType;
-    public String name;
-    public ExprNode initValue;
-    public List<ExprNode> initValueList;
+    public final RefType refType;
+    public final ValueType valueType;
+    public final String name;
+    public ExprNode initValue = null;
+    public List<ExprNode> initValueList = null;
     public List<ExprNode> dimension;
-    public int level;
+    public final int level;
     public final boolean isConst;
 
     public TableEntry(RefType symbolType, ValueType valueType, String name, Integer initValue, boolean isConst,
@@ -73,5 +75,23 @@ public class TableEntry {
             this.refType = RefType.ARRAY;
         }
         this.valueType = TO_VALUE_TYPE.get(funcParamNode.type());
+    }
+
+    public void simplify(SymbolTable symbolTable) {
+        if (initValue != null) {
+            initValue = initValue.simplify(symbolTable);
+        }
+        if (initValueList != null) {
+            List<ExprNode> newInitValueList = new ArrayList<>();
+            for (ExprNode exprNode : initValueList) {
+                newInitValueList.add(exprNode.simplify(symbolTable));
+            }
+            initValueList = newInitValueList;
+        }
+        List<ExprNode> newDimension = new ArrayList<>();
+        for (ExprNode exprNode : dimension) {
+            newDimension.add(exprNode.simplify(symbolTable));
+        }
+        dimension = newDimension;
     }
 }

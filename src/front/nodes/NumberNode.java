@@ -2,8 +2,9 @@ package front.nodes;
 
 import front.SymbolTable;
 import front.TableEntry;
+import mid.ircode.Operand;
 
-public class NumberNode extends ExprNode {
+public class NumberNode extends ExprNode  {
     private final int number;
 
     public NumberNode(int number) {
