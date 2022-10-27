@@ -1,4 +1,9 @@
 package front.nodes;
 
-public interface StmtNode extends BlockItemNode{
+import mid.ircode.BasicBlock;
+
+import java.util.List;
+
+public interface StmtNode extends BlockItemNode {
+
 }

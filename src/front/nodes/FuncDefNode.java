@@ -4,7 +4,7 @@ import front.CompileUnit;
 
 import java.util.List;
 
-public class FuncDefNode {
+public class FuncDefNode implements SyntaxNode {
     private final CompileUnit.Type type;
     private final String name;
     private final int line;

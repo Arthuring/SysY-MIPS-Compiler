@@ -1,5 +1,6 @@
 package front.nodes;
 
+import front.SymbolTable;
 import front.TableEntry;
 
 public class NumberNode extends ExprNode {
@@ -20,5 +21,10 @@ public class NumberNode extends ExprNode {
         return "NumberNode{\n" +
                 "number=" + number +
                 "\n}";
+    }
+
+    @Override
+    public ExprNode simplify(SymbolTable symbolTable) {
+        return this;
     }
 }

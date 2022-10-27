@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class SymbolTable {
+    private static final SymbolTable globalTable = new SymbolTable(null, "GLOBAL");;
     private final SymbolTable parentTable;
     private final String filedName;
     private final Map<String, TableEntry> varSymbols = new HashMap<>();
@@ -56,6 +57,6 @@ public class SymbolTable {
     }
 
     public static SymbolTable globalTable() {
-        return new SymbolTable(null, "GLOBAL");
+        return globalTable;
     }
 }

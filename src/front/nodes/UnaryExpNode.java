@@ -1,6 +1,7 @@
 package front.nodes;
 
 import front.CompileUnit;
+import front.SymbolTable;
 
 
 import java.util.HashMap;
@@ -30,6 +31,11 @@ public class UnaryExpNode extends ExprNode {
         this.expNode = exprNode;
     }
 
+    public UnaryExpNode(UnaryOp op, ExprNode exprNode) {
+        this.op = op;
+        this.expNode = exprNode;
+    }
+
     @Override
     public String toString() {
         return "UnaryExpNode{\n" +
@@ -44,5 +50,24 @@ public class UnaryExpNode extends ExprNode {
 
     public ExprNode expNode() {
         return expNode;
+    }
+
+    @Override
+    public ExprNode simplify(SymbolTable symbolTable) {
+        ExprNode simplifiedExpNode = expNode.simplify(symbolTable);
+        if (simplifiedExpNode instanceof NumberNode) {
+            switch (op) {
+                case NOT:
+                    return new UnaryExpNode(CompileUnit.Type.NOT, simplifiedExpNode);
+                case MINU:
+                    return new NumberNode(((NumberNode) simplifiedExpNode).number() * -1);
+                case PLUS:
+                    return new NumberNode(((NumberNode) simplifiedExpNode).number());
+                default:
+                    return new UnaryExpNode(op, simplifiedExpNode);
+            }
+        } else {
+            return new UnaryExpNode(op,simplifiedExpNode);
+        }
     }
 }

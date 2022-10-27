@@ -2,6 +2,7 @@ package front;
 
 import exception.CompileExc;
 import front.nodes.FuncParamNode;
+import mid.ircode.BasicBlock;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -15,6 +16,7 @@ public class FuncEntry {
     private final Map<String, TableEntry> name2entry = new HashMap<>();
     private final boolean isMain;
     private final TableEntry.ValueType returnType;
+    private final List<BasicBlock> basicBlocks = new ArrayList<>();
 
     public TableEntry.ValueType returnType() {
         return returnType;

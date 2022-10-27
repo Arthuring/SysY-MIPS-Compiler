@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 
 public class SemanticChecker {
     private static SymbolTable currentTable = SymbolTable.globalTable();
-    private static final Map<String, FuncEntry> funcTable = new HashMap<>();
+    private static final Map<String, FuncEntry> FUNC_TABLE = new HashMap<>();
     private static final List<CompileExc> ERROR = new ArrayList<>();
     private static FuncEntry currentFunc = null;
     private static int depth = 0;
@@ -81,7 +81,7 @@ public class SemanticChecker {
         //add symbols to table
         for (DefNode defNode : defNodeList) {
             try {
-                if (currentTable.isGlobalTable() && funcTable.containsKey(defNode.ident())) {
+                if (currentTable.isGlobalTable() && FUNC_TABLE.containsKey(defNode.ident())) {
                     throw new CompileExc(CompileExc.ErrType.REDEF, defNode.line());
                 }
                 currentTable.addVarSymbol(defNode, depth, declNode.isConst(), declNode.getType());
@@ -123,10 +123,10 @@ public class SemanticChecker {
             ERROR.add(new CompileExc(CompileExc.ErrType.REDEF, line));
         }
         //check if redefine with func
-        if (funcTable.containsKey(funcName)) {
+        if (FUNC_TABLE.containsKey(funcName)) {
             ERROR.add(new CompileExc(CompileExc.ErrType.REDEF, line));
         } else {
-            funcTable.put(funcName, funcEntry);
+            FUNC_TABLE.put(funcName, funcEntry);
         }
         FuncEntry tempFunc = currentFunc;
         currentFunc = funcEntry;
@@ -227,6 +227,10 @@ public class SemanticChecker {
                         compileUnits.get(compileUnits.size() - 1).lineNo()));
             }
         }
+        //set symbolTable & FuncEntry in BlockNode
+        blockNode.setFuncEntry(currentFunc);
+        blockNode.setSymbolTable(currentTable);
+        blockNode.setDepth(depth);
 
         // recover symbolTable and depth
         currentTable = temp;
@@ -452,10 +456,10 @@ public class SemanticChecker {
         //find table for callee func
         TableEntry tableEntry = currentTable.getSymbol(ident);
         TableEntry.ValueType valueType = TableEntry.ValueType.INT;
-        if (tableEntry != null || !funcTable.containsKey(ident)) {
+        if (tableEntry != null || !FUNC_TABLE.containsKey(ident)) {
             ERROR.add(new CompileExc(CompileExc.ErrType.UNDECL, line));
         } else {
-            FuncEntry funcEntry = funcTable.get(ident);
+            FuncEntry funcEntry = FUNC_TABLE.get(ident);
             valueType = funcEntry.returnType();
             if (funcEntry.args().size() != args.size()) {
                 ERROR.add(new CompileExc(CompileExc.ErrType.ARG_NUM_MISMATCH, line));
@@ -472,5 +476,13 @@ public class SemanticChecker {
             }
         }
         return new FuncCallNode(ident, line, args, valueType);
+    }
+
+    public static SymbolTable getCurrentTable() {
+        return currentTable;
+    }
+
+    public static Map<String, FuncEntry> getFuncTable() {
+        return FUNC_TABLE;
     }
 }

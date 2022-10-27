@@ -1,6 +1,7 @@
 package front.nodes;
 
 import front.CompileUnit;
+import front.SymbolTable;
 import front.TableEntry;
 
 import java.util.HashMap;
@@ -72,5 +73,44 @@ public class BinaryExpNode extends ExprNode {
                 ",\n left=" + left +
                 ",\n right=" + right +
                 "\n}";
+    }
+
+    @Override
+    public ExprNode simplify(SymbolTable symbolTable) {
+        ExprNode simplifiedLeft = left.simplify(symbolTable);
+        ExprNode simplifiedRight = right.simplify(symbolTable);
+
+        if (simplifiedLeft instanceof NumberNode &&
+                simplifiedRight instanceof NumberNode) {
+            switch (op) {
+                case ADD:
+                    return new NumberNode(((NumberNode) simplifiedLeft).number()
+                            + ((NumberNode) simplifiedRight).number());
+                case SUB:
+                    return new NumberNode(((NumberNode) simplifiedLeft).number()
+                            - ((NumberNode) simplifiedRight).number());
+                case MUL:
+                    return new NumberNode(((NumberNode) simplifiedLeft).number()
+                            * ((NumberNode) simplifiedRight).number());
+                case DIV:
+                    return new NumberNode(((NumberNode) simplifiedLeft).number()
+                            / ((NumberNode) simplifiedRight).number());
+                case MOD:
+                    return new NumberNode(((NumberNode) simplifiedLeft).number()
+                            % ((NumberNode) simplifiedRight).number());
+                case OR:
+                case AND:
+                case EQL:
+                case GEQ:
+                case GRE:
+                case LEQ:
+                case LSS:
+                case NEQ:
+                default:
+                    return new BinaryExpNode(simplifiedLeft, op, simplifiedRight);
+            }
+        } else {
+            return new BinaryExpNode(simplifiedLeft, op, simplifiedRight);
+        }
     }
 }

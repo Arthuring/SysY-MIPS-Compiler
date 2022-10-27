@@ -1,5 +1,6 @@
 package front.nodes;
 
+import front.SymbolTable;
 import front.TableEntry;
 
 import java.util.List;
@@ -36,5 +37,10 @@ public class FuncCallNode extends ExprNode {
                 ",\n line=" + line +
                 ",\n args=" + args +
                 "\n}";
+    }
+
+    @Override
+    public ExprNode simplify(SymbolTable symbolTable) {
+        return this;
     }
 }

@@ -1,6 +1,7 @@
 package front.nodes;
 
 import exception.CompileExc;
+import front.SymbolTable;
 import front.TableEntry;
 
 import java.util.List;
@@ -44,5 +45,10 @@ public class PrintfNode extends FuncCallNode {
                 super.toString() +
                 "formatString='" + formatString + '\'' +
                 "\n}";
+    }
+
+    @Override
+    public ExprNode simplify(SymbolTable symbolTable) {
+        return this;
     }
 }
