@@ -2,12 +2,10 @@ package front;
 
 import exception.CompileExc;
 import front.nodes.FuncParamNode;
+import javafx.scene.control.Tab;
 import mid.ircode.BasicBlock;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class FuncEntry {
 
@@ -49,6 +47,7 @@ public class FuncEntry {
         }
     }
 
+
     public FuncEntry() {
         this.name = "main";
         this.returnType = TableEntry.ValueType.INT;
@@ -59,5 +58,21 @@ public class FuncEntry {
         this.name = name;
         this.returnType = TableEntry.TO_VALUE_TYPE.get(type);
         this.isMain = name.equals("main");
+    }
+
+    public String toIr() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("define dso_local ");
+        sb.append(TableEntry.TO_IR.get(this.returnType));
+        sb.append("@");
+        sb.append(name);
+        sb.append("(");
+        StringJoiner paramJoiner = new StringJoiner(",");
+        for (TableEntry tableEntry : args) {
+            paramJoiner.add(tableEntry.toParamIr());
+        }
+        sb.append(paramJoiner.toString());
+        sb.append(")");
+        return sb.toString();
     }
 }

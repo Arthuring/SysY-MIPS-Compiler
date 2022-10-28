@@ -59,4 +59,8 @@ public class InstructionLinkNode extends User {
         }
         this.next = irLinkNode;
     }
+
+    public String toIr() {
+        return null;
+    }
 }

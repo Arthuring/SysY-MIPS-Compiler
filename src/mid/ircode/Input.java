@@ -1,4 +1,16 @@
 package mid.ircode;
 
-public class Input {
+import front.TableEntry;
+
+public class Input extends InstructionLinkNode {
+    private final TableEntry dst;
+
+    public Input(TableEntry dst) {
+        this.dst = dst;
+    }
+
+    public TableEntry getDst() {
+        return dst;
+    }
+
 }

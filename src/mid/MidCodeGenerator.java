@@ -8,8 +8,11 @@ import front.nodes.*;
 import javafx.scene.control.Tab;
 import mid.ircode.*;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class MidCodeGenerator {
     private static SymbolTable currentTable = SymbolTable.globalTable();
@@ -36,7 +39,7 @@ public class MidCodeGenerator {
             TableEntry tableEntry = currentTable.getSymbol(defNode.ident());
             tableEntry.simplify(currentTable);
             if (currentTable.isGlobalTable()) {
-                IrModule.GLOBAL_VAR_DEFS.add(tableEntry);
+                IrModule.getGlobalVarDefs().add(tableEntry);
             } else {
                 VarDef varDef = new VarDef(tableEntry);
                 currentBasicBlock.addAfter(varDef);
@@ -46,9 +49,10 @@ public class MidCodeGenerator {
 
     public static void funcDefNodeToIr(FuncDefNode funcDefNode) {
         FuncDef temp = currentFuncDef;
-        currentFuncDef = new FuncDef(FUNC_TABLE.get(funcDefNode.name()));
 
+        currentFuncDef = new FuncDef(FUNC_TABLE.get(funcDefNode.name()));
         blockNodeToIr(funcDefNode.blockNode());
+        IrModule.getFuncDefs().add(currentFuncDef);
 
         currentFuncDef = temp;
     }
@@ -72,6 +76,7 @@ public class MidCodeGenerator {
             }
         }
 
+        //切换环境
         currentTable = temp;
         depth -= 1;
     }
@@ -79,12 +84,10 @@ public class MidCodeGenerator {
     public static void stmtNodeToIr(StmtNode stmtNode) {
         if (stmtNode instanceof AssignNode) {
             assignNodeToIr((AssignNode) stmtNode);
-        } else if (stmtNode instanceof GetintNode) {
-            getIntNodeToIr((GetintNode) stmtNode);
         } else if (stmtNode instanceof PrintfNode) {
             printfNodeToIr((PrintfNode) stmtNode);
         } else if (stmtNode instanceof ExprNode) {
-            ExprNode exprNode = ((ExprNode)stmtNode).simplify(currentTable);
+            ExprNode exprNode = ((ExprNode) stmtNode).simplify(currentTable);
             expNodeToIr(exprNode);
         } else if (stmtNode instanceof BreakStmtNode) {
             //TODO
@@ -105,15 +108,30 @@ public class MidCodeGenerator {
         LValNode left = assignNode.lVal();
         TableEntry dst = currentTable.getSymbol(left.ident());
         ExprNode right = assignNode.exprNode().simplify(currentTable);
-        Operand value = expNodeToIr(right);
-        currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.STORE, dst, value));
+        if (right instanceof GetintNode) {
+            Operand value = getIntNodeToIr((GetintNode) right);
+            currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.STORE, dst, value));
+        } else {
+            Operand value = expNodeToIr(right);
+            currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.STORE, dst, value));
+        }
     }
 
     public static Operand expNodeToIr(ExprNode exprNode) {
         if (exprNode instanceof BinaryExpNode) {
             return binaryExpNodeToIr((BinaryExpNode) exprNode);
-        } else {
+        } else if (exprNode instanceof UnaryExpNode) {
             return unaryExpNodeToIr((UnaryExpNode) exprNode);
+        } else if (exprNode instanceof GetintNode) {
+            return getIntNodeToIr((GetintNode) exprNode);
+        } else if (exprNode instanceof FuncCallNode) {
+            return funcCallNodeToIr((FuncCallNode) exprNode);
+        } else if (exprNode instanceof LValNode) {
+            return LValNodeToIr((LValNode) exprNode);
+        } else if (exprNode instanceof NumberNode) {
+            return new Immediate(((NumberNode) exprNode).number());
+        } else {
+            return null;
         }
     }
 
@@ -121,31 +139,80 @@ public class MidCodeGenerator {
         Operand left = expNodeToIr(exprNode.left());
         Operand right = expNodeToIr(exprNode.right());
         TableEntry dst = TempCounter.getTemp();
-        currentBasicBlock.addAfter(new BinaryOperator(exprNode.op(),dst, left, right));
+        currentBasicBlock.addAfter(new BinaryOperator(exprNode.op(), dst, left, right));
         return dst;
     }
 
     public static Operand unaryExpNodeToIr(UnaryExpNode exprNode) {
-        return null;
+        Operand right = expNodeToIr(exprNode.expNode());
+        if (exprNode.op() != UnaryExpNode.UnaryOp.PLUS) {
+            TableEntry dst = TempCounter.getTemp();
+            currentBasicBlock.addAfter(new UnaryOperator(exprNode.op(), dst, right));
+            return dst;
+        } else {
+            return right;
+        }
     }
 
-    public static void getIntNodeToIr(GetintNode getintNode) {
-
+    public static Operand getIntNodeToIr(GetintNode getintNode) {
+        TableEntry dst = TempCounter.getTemp();
+        currentBasicBlock.addAfter(new Input(dst));
+        return dst;
     }
 
     public static Operand funcCallNodeToIr(FuncCallNode funcCallNode) {
-        return null;
+        FuncEntry funcEntry = FUNC_TABLE.get(funcCallNode.ident());
+        TableEntry dst = funcEntry.returnType() == TableEntry.ValueType.INT ?
+                TempCounter.getTemp() : null;
+        List<Operand> irArgs = new ArrayList<>();
+        List<ExprNode> args = funcCallNode.args();
+        for (ExprNode exprNode : args) {
+            irArgs.add(expNodeToIr(exprNode));
+        }
+        if (funcEntry.returnType() == TableEntry.ValueType.VOID) {
+            currentBasicBlock.addAfter(new Call(funcEntry, irArgs));
+        } else {
+            currentBasicBlock.addAfter(new Call(funcEntry, irArgs, dst));
+        }
+        return dst;
     }
 
     public static Operand LValNodeToIr(LValNode lValNode) {
-        return null;
+        //TODO: 查找符号表流程不对，没查参数
+        TableEntry dst = TempCounter.getTemp();
+        TableEntry src = currentTable.getSymbol(lValNode.ident());
+        currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.LOAD, dst, src));
+        return dst;
     }
 
     public static void returnNodeToIr(ReturnNode returnNode) {
+        Operand returnValue;
+        if (returnNode.returnExpr() != null) {
+            returnValue = expNodeToIr(returnNode.returnExpr());
+            currentBasicBlock.addAfter(new Return(returnValue));
+        } else {
+            currentBasicBlock.addAfter(new Return(null));
+        }
 
     }
 
     public static void printfNodeToIr(PrintfNode printfNode) {
-
+        String formatString = printfNode.formatString();
+        List<String> formatStrings = Arrays.stream((formatString.split("%d")))
+                .collect(Collectors.toList());
+        int stringCnt = formatStrings.size();
+        int valueCnt = stringCnt - 1;
+        int putIntCnt = 0;
+        List<ExprNode> args = printfNode.args();
+        for (String string : formatStrings) {
+            if (!string.equals("")) {
+                String label = StringCounter.findString(string);
+                currentBasicBlock.addAfter(new PrintStr(label, string));
+            }
+            if (putIntCnt < valueCnt) {
+                Operand result = expNodeToIr(args.get(putIntCnt));
+                currentBasicBlock.addAfter(new PrintInt(result));
+            }
+        }
     }
 }

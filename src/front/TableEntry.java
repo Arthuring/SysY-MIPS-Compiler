@@ -5,6 +5,7 @@ import front.nodes.ExprNode;
 import front.nodes.FuncParamNode;
 import front.nodes.NumberNode;
 import mid.ircode.Operand;
+import mid.ircode.Value;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -16,6 +17,13 @@ public class TableEntry implements Operand {
         INT,
         VOID,
     }
+
+    public static final Map<ValueType, String> TO_IR = new HashMap<ValueType, String>() {
+        {
+            put(ValueType.INT, "i32");
+            put(ValueType.VOID, "void");
+        }
+    };
 
     public enum RefType {
         ITEM, ARRAY, POINTER
@@ -93,5 +101,27 @@ public class TableEntry implements Operand {
             newDimension.add(exprNode.simplify(symbolTable));
         }
         dimension = newDimension;
+    }
+
+    public String toGlobalIr() {
+        if (initValue != null) {
+            return "@" + name + "=dso_local global "
+                    + TO_IR.get(this.valueType) + " "
+                    + ((NumberNode) initValue).number();
+        } else {
+            return "@" + name + "=dso_local global "
+                    + TO_IR.get(this.valueType) + " "
+                    + 0;
+        }
+    }
+
+    public String toParamIr() {
+        return TO_IR.get(valueType)
+                + ((refType == RefType.ARRAY || refType == RefType.POINTER) ? "* " : " ")
+                + toNameIr();
+    }
+
+    public String toNameIr() {
+        return "%" + name + "_" + level;
     }
 }

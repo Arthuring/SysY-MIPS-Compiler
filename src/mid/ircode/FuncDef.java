@@ -4,6 +4,7 @@ import front.FuncEntry;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringJoiner;
 
 public class FuncDef extends InstructionLinkNode {
     private final FuncEntry funcEntry;
@@ -23,5 +24,15 @@ public class FuncDef extends InstructionLinkNode {
 
     public List<BasicBlock> getBasicBlocks() {
         return basicBlocks;
+    }
+
+    public String toIr() {
+        StringJoiner sj = new StringJoiner("\n");
+        sj.add(funcEntry.toIr() + " {");
+        for (BasicBlock basicBlock : basicBlocks) {
+            sj.add(basicBlock.toIr());
+        }
+        sj.add("}");
+        return sj.toString();
     }
 }

@@ -58,4 +58,8 @@ public class BinaryOperator extends InstructionLinkNode {
     public TableEntry getDst() {
         return dst;
     }
+
+    public String toIr(){
+
+    }
 }

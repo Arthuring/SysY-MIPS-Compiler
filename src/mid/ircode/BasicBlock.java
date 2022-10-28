@@ -1,5 +1,7 @@
 package mid.ircode;
 
+import java.util.StringJoiner;
+
 public class BasicBlock extends InstructionLinkNode {
     private final String label;
     private final InstructionLinkNode end = new InstructionLinkNode();
@@ -32,5 +34,16 @@ public class BasicBlock extends InstructionLinkNode {
         }
         end.setPrev(ptr);
         ptr.setNext(end);
+    }
+
+    public String toIr() {
+        StringJoiner sj = new StringJoiner("\n");
+        sj.add(label + ":");
+        InstructionLinkNode ptr = this.next();
+        while (ptr != this.end) {
+            sj.add(ptr.toIr());
+            ptr = ptr.next();
+        }
+        return sj.toString();
     }
 }
