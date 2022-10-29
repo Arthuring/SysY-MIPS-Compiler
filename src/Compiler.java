@@ -6,6 +6,8 @@ import front.SemanticChecker;
 import front.Token;
 import front.TokenPackage;
 import front.nodes.CompileUnitNode;
+import mid.IrModule;
+import mid.MidCodeGenerator;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -71,12 +73,15 @@ public class Compiler {
         CompileUnitNode compileUnitNode = SemanticChecker.buildCompileUnitNode(compileUnit);
         errs.addAll(SemanticChecker.getError());
         List<CompileExc> excs = new ArrayList<>(errs);
-        output(outputFile, compileUnitNode.toString(), excs);
+        if (excs.size() == 0) {
+            MidCodeGenerator.compileUnitToIr(compileUnitNode);
+        }
+        output(outputFile, IrModule.toIr(), excs);
     }
 
     public static void main(String[] args) throws Exception {
 
-        irTest("testfile.txt", "output.txt");
+        irTest("testfile.txt", "llvm_ir.txt");
 
     }
 }

@@ -44,18 +44,20 @@ public class TableEntry implements Operand {
     public List<ExprNode> dimension;
     public final int level;
     public final boolean isConst;
+    public final boolean isGlobal;
 
     public TableEntry(RefType symbolType, ValueType valueType, String name, Integer initValue, boolean isConst,
-                      int level) {
+                      int level, boolean isGlobal) {
         this.refType = symbolType;
         this.valueType = valueType;
         this.name = name;
         this.initValue = new NumberNode(initValue);
         this.isConst = isConst;
         this.level = level;
+        this.isGlobal = isGlobal;
     }
 
-    public TableEntry(DefNode defNode, boolean isConst, int level, CompileUnit.Type type) {
+    public TableEntry(DefNode defNode, boolean isConst, int level, CompileUnit.Type type, boolean isGlobal) {
         this.isConst = isConst;
         this.dimension = defNode.dimension();
         this.name = defNode.ident();
@@ -70,6 +72,7 @@ public class TableEntry implements Operand {
         }
         this.level = level;
         this.valueType = TO_VALUE_TYPE.get(type);
+        this.isGlobal = isGlobal;
     }
 
     public TableEntry(FuncParamNode funcParamNode) {
@@ -83,6 +86,7 @@ public class TableEntry implements Operand {
             this.refType = RefType.ARRAY;
         }
         this.valueType = TO_VALUE_TYPE.get(funcParamNode.type());
+        this.isGlobal = false;
     }
 
     public void simplify(SymbolTable symbolTable) {
@@ -105,11 +109,11 @@ public class TableEntry implements Operand {
 
     public String toGlobalIr() {
         if (initValue != null) {
-            return "@" + name + "=dso_local global "
+            return "@" + name + " = dso_local global "
                     + TO_IR.get(this.valueType) + " "
                     + ((NumberNode) initValue).number();
         } else {
-            return "@" + name + "=dso_local global "
+            return "@" + name + " = dso_local global "
                     + TO_IR.get(this.valueType) + " "
                     + 0;
         }
@@ -122,6 +126,10 @@ public class TableEntry implements Operand {
     }
 
     public String toNameIr() {
-        return "%" + name + "_" + level;
+        if (!isGlobal) {
+            return "%" + name + "_" + level;
+        } else {
+            return "@" + name;
+        }
     }
 }

@@ -33,7 +33,7 @@ public class IrModule {
         return GLOBAL_VAR_DEFS;
     }
 
-    public String toString() {
+    public static String toIr() {
         StringJoiner sj = new StringJoiner("\n");
         for (String str : TARGET_INFORMATION) {
             sj.add(str);

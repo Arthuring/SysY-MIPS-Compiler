@@ -13,4 +13,8 @@ public class Input extends InstructionLinkNode {
         return dst;
     }
 
+    @Override
+    public String toIr() {
+        return "\t" + dst.toNameIr() + " = call i32 @getint()";
+    }
 }

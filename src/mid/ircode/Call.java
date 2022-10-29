@@ -4,6 +4,7 @@ import front.FuncEntry;
 import front.TableEntry;
 
 import java.util.List;
+import java.util.StringJoiner;
 
 public class Call extends InstructionLinkNode {
     private final FuncEntry funcEntry;
@@ -32,5 +33,20 @@ public class Call extends InstructionLinkNode {
 
     public TableEntry getReturnDst() {
         return returnDst;
+    }
+
+    @Override
+    public String toIr() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("\t" + "call ");
+        sb.append(TableEntry.TO_IR.get(funcEntry.returnType()));
+        sb.append(" ");
+        sb.append("@").append(funcEntry.name()).append("(");
+        StringJoiner sj = new StringJoiner(",");
+        for (Operand operand : args) {
+            sj.add(operand.toParamIr());
+        }
+        sb.append(")");
+        return sb.toString();
     }
 }

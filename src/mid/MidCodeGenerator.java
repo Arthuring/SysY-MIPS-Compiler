@@ -31,18 +31,26 @@ public class MidCodeGenerator {
         for (FuncDefNode funcDefNode : funcDefNodes) {
             funcDefNodeToIr(funcDefNode);
         }
+        funcDefNodeToIr(mainFuncDef);
     }
 
     public static void declNodeToIr(DeclNode declNode) {
         List<DefNode> defNodeList = declNode.defNodeList();
-        for (DefNode defNode : defNodeList) {
-            TableEntry tableEntry = currentTable.getSymbol(defNode.ident());
-            tableEntry.simplify(currentTable);
-            if (currentTable.isGlobalTable()) {
-                IrModule.getGlobalVarDefs().add(tableEntry);
-            } else {
-                VarDef varDef = new VarDef(tableEntry);
-                currentBasicBlock.addAfter(varDef);
+        if (!declNode.isConst()) {
+            for (DefNode defNode : defNodeList) {
+                TableEntry tableEntry = currentTable.getSymbol(defNode.ident());
+                tableEntry.simplify(currentTable);
+                if (currentTable.isGlobalTable()) {
+                    IrModule.getGlobalVarDefs().add(tableEntry);
+                } else {
+                    VarDef varDef = new VarDef(tableEntry);
+                    currentBasicBlock.addAfter(varDef);
+                    if ((tableEntry.refType == TableEntry.RefType.ITEM &&
+                            tableEntry.initValue != null)) {
+                        Operand init = expNodeToIr(tableEntry.initValue);
+                        currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.STORE, tableEntry, init));
+                    }
+                }
             }
         }
     }
@@ -64,7 +72,7 @@ public class MidCodeGenerator {
         currentTable = blockNode.getSymbolTable();
         depth += 1;
         //new basic block
-        String label = currentBasicBlock.getLabel();
+        String label = LabelCounter.getLabel();
         currentBasicBlock = new BasicBlock(label);
         currentFuncDef.addBlock(currentBasicBlock);
 
@@ -178,7 +186,6 @@ public class MidCodeGenerator {
     }
 
     public static Operand LValNodeToIr(LValNode lValNode) {
-        //TODO: 查找符号表流程不对，没查参数
         TableEntry dst = TempCounter.getTemp();
         TableEntry src = currentTable.getSymbol(lValNode.ident());
         currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.LOAD, dst, src));

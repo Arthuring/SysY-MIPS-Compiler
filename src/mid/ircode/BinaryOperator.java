@@ -22,6 +22,15 @@ public class BinaryOperator extends InstructionLinkNode {
         }
     };
 
+    private static final Map<Op, String> OP_TO_IR = new HashMap<Op, String>() {
+        {
+            put(Op.ADD, "add");
+            put(Op.SUB, "sub");
+            put(Op.MULT, "mul");
+            put(Op.DIV, "sdiv");
+            put(Op.MOD, "srem");
+        }
+    };
 
     private final Op op;
     private final TableEntry dst;
@@ -59,7 +68,11 @@ public class BinaryOperator extends InstructionLinkNode {
         return dst;
     }
 
-    public String toIr(){
+    public String toIr() {
+        return "\t" + dst.toNameIr() + " = " + OP_TO_IR.get(op) + " "
+                + TableEntry.TO_IR.get(dst.valueType) + " " +
+                src1.toNameIr() + ", " +
+                src2.toNameIr();
 
     }
 }

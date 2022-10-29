@@ -10,4 +10,14 @@ public class Immediate implements Operand {
     public int getValue() {
         return value;
     }
+
+    @Override
+    public String toNameIr() {
+        return String.valueOf(value);
+    }
+
+    @Override
+    public String toParamIr() {
+        return "i32 " + value;
+    }
 }

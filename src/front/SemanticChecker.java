@@ -133,6 +133,7 @@ public class SemanticChecker {
         BlockNode.BlockType temp = currentBlock;
         currentBlock = BlockNode.BlockType.FUNC;
         BlockNode funcBlock = buildBlockNode(childUnits.get(childUnits.size() - 1));
+
         currentBlock = temp;
         currentFunc = tempFunc;
         return new FuncDefNode(funcType, funcName, line, funcParamNodes, funcBlock);

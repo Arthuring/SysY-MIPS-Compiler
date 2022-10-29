@@ -29,7 +29,7 @@ public class InstructionLinkNode extends User {
     }
 
     public boolean hasNext() {
-        return this.next == null;
+        return this.next != null;
     }
 
     public void remove() {

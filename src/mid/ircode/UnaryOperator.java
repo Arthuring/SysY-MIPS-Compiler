@@ -1,6 +1,5 @@
 package mid.ircode;
 
-import front.CompileUnit;
 import front.TableEntry;
 import front.nodes.UnaryExpNode;
 
@@ -12,6 +11,13 @@ public class UnaryOperator extends InstructionLinkNode {
         PLUS, MINU, NOT
     }
 
+    private static final Map<UnaryOperator.Op, String> OP_TO_IR = new HashMap<UnaryOperator.Op, String>() {
+        {
+            put(Op.PLUS, "add");
+            put(Op.MINU, "sub");
+        }
+    };
+
     private static final Map<UnaryExpNode.UnaryOp, Op> OP_2_OP = new HashMap<UnaryExpNode.UnaryOp, Op>() {
         {
             put(UnaryExpNode.UnaryOp.PLUS, Op.PLUS);
@@ -19,6 +25,7 @@ public class UnaryOperator extends InstructionLinkNode {
             put(UnaryExpNode.UnaryOp.NOT, Op.NOT);
         }
     };
+
 
     private final Op op;
     private final TableEntry dst;
@@ -41,4 +48,12 @@ public class UnaryOperator extends InstructionLinkNode {
     public Operand getSrc() {
         return src;
     }
+
+    public String toIr() {
+        return "\t" + dst.toNameIr() + " = " + OP_TO_IR.get(op) + " "
+                + TableEntry.TO_IR.get(dst.valueType) + " " +
+                "0, " +
+                src.toNameIr();
+    }
+
 }

@@ -64,7 +64,7 @@ public class FuncEntry {
         StringBuilder sb = new StringBuilder();
         sb.append("define dso_local ");
         sb.append(TableEntry.TO_IR.get(this.returnType));
-        sb.append("@");
+        sb.append(" @");
         sb.append(name);
         sb.append("(");
         StringJoiner paramJoiner = new StringJoiner(",");
