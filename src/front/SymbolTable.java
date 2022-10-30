@@ -59,4 +59,8 @@ public class SymbolTable {
     public static SymbolTable globalTable() {
         return globalTable;
     }
+
+    public Map<String, TableEntry> getVarSymbols() {
+        return varSymbols;
+    }
 }

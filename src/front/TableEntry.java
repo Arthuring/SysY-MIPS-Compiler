@@ -7,15 +7,22 @@ import front.nodes.NumberNode;
 import mid.ircode.Operand;
 import mid.ircode.Value;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class TableEntry implements Operand {
     public enum ValueType {
-        INT,
-        VOID,
+        INT(4),
+        VOID(4),
+        ;
+        private final int size;
+
+        ValueType(int size) {
+            this.size = size;
+        }
+
+        public int sizeof() {
+            return size;
+        }
     }
 
     public static final Map<ValueType, String> TO_IR = new HashMap<ValueType, String>() {
@@ -45,6 +52,8 @@ public class TableEntry implements Operand {
     public final int level;
     public final boolean isConst;
     public final boolean isGlobal;
+    public int address = 0;
+    public boolean isTemp = false;
 
     public TableEntry(RefType symbolType, ValueType valueType, String name, Integer initValue, boolean isConst,
                       int level, boolean isGlobal) {
@@ -55,6 +64,18 @@ public class TableEntry implements Operand {
         this.isConst = isConst;
         this.level = level;
         this.isGlobal = isGlobal;
+    }
+
+    public TableEntry(RefType symbolType, ValueType valueType, String name, Integer initValue, boolean isConst,
+                      int level, boolean isGlobal, boolean isTemp) {
+        this.refType = symbolType;
+        this.valueType = valueType;
+        this.name = name;
+        this.initValue = new NumberNode(initValue);
+        this.isConst = isConst;
+        this.level = level;
+        this.isGlobal = isGlobal;
+        this.isTemp = isTemp;
     }
 
     public TableEntry(DefNode defNode, boolean isConst, int level, CompileUnit.Type type, boolean isGlobal) {
@@ -131,5 +152,38 @@ public class TableEntry implements Operand {
         } else {
             return "@" + name;
         }
+    }
+
+    public void setAddress(int address) {
+        this.address = address;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        TableEntry that = (TableEntry) o;
+        return level == that.level && Objects.equals(name, that.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, level);
+    }
+
+    public int sizeof() {
+        if (refType == RefType.ITEM) {
+            return valueType.sizeof();
+        } else {
+            int temp = valueType.sizeof();
+            for (ExprNode exprNode : dimension) {
+                temp *= ((NumberNode) exprNode).number();
+            }
+            return temp;
+        }
+    }
+
+    public boolean isTemp() {
+        return isTemp;
     }
 }

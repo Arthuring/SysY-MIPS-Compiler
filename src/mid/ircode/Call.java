@@ -38,7 +38,12 @@ public class Call extends InstructionLinkNode {
     @Override
     public String toIr() {
         StringBuilder sb = new StringBuilder();
-        sb.append("\t" + "call ");
+        if (returnDst != null) {
+            sb.append("\t").append(returnDst.toNameIr()).append(" = call ");
+        } else {
+            sb.append("\t" + "call ");
+        }
+
         sb.append(TableEntry.TO_IR.get(funcEntry.returnType()));
         sb.append(" ");
         sb.append("@").append(funcEntry.name()).append("(");

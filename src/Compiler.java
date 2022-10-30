@@ -73,10 +73,13 @@ public class Compiler {
         CompileUnitNode compileUnitNode = SemanticChecker.buildCompileUnitNode(compileUnit);
         errs.addAll(SemanticChecker.getError());
         List<CompileExc> excs = new ArrayList<>(errs);
+        IrModule irModule;
         if (excs.size() == 0) {
-            MidCodeGenerator.compileUnitToIr(compileUnitNode);
+            irModule = MidCodeGenerator.compileUnitToIr(compileUnitNode);
+        } else {
+            irModule = new IrModule();
         }
-        output(outputFile, IrModule.toIr(), excs);
+        output(outputFile, irModule.toIr(), excs);
     }
 
     public static void main(String[] args) throws Exception {

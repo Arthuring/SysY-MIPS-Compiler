@@ -1,16 +1,14 @@
 package mid;
 
-import front.FuncEntry;
 import front.TableEntry;
 import mid.ircode.FuncDef;
-import mid.ircode.VarDef;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
 
 public class IrModule {
-    private static final List<String> TARGET_INFORMATION = new ArrayList<String>() {
+    private final List<String> targetInformation = new ArrayList<String>() {
         {
             add("declare i32 @getint()");
             add("declare void @putint(i32)");
@@ -18,30 +16,33 @@ public class IrModule {
             add("declare void @putstr(i8*)");
         }
     };
-    private static final List<TableEntry> GLOBAL_VAR_DEFS = new ArrayList<>();
-    private static final List<FuncDef> FUNC_DEFS = new ArrayList<>();
+    private final List<TableEntry> globalVarDefs = new ArrayList<>();
+    private final List<FuncDef> funcDefs = new ArrayList<>();
 
-    public static List<FuncDef> getFuncDefs() {
-        return FUNC_DEFS;
+    public IrModule(){
+
+    }
+    public List<FuncDef> getFuncDefs() {
+        return funcDefs;
     }
 
-    public static List<String> getTargetInformation() {
-        return TARGET_INFORMATION;
+    public List<String> getTargetInformation() {
+        return targetInformation;
     }
 
-    public static List<TableEntry> getGlobalVarDefs() {
-        return GLOBAL_VAR_DEFS;
+    public List<TableEntry> getGlobalVarDefs() {
+        return globalVarDefs;
     }
 
-    public static String toIr() {
+    public String toIr() {
         StringJoiner sj = new StringJoiner("\n");
-        for (String str : TARGET_INFORMATION) {
+        for (String str : targetInformation) {
             sj.add(str);
         }
-        for (TableEntry tableEntry : GLOBAL_VAR_DEFS) {
+        for (TableEntry tableEntry : globalVarDefs) {
             sj.add(tableEntry.toGlobalIr());
         }
-        for (FuncDef funcDef : FUNC_DEFS) {
+        for (FuncDef funcDef : funcDefs) {
             sj.add(funcDef.toIr());
         }
         return sj.toString();

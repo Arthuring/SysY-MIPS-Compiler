@@ -5,7 +5,6 @@ import front.SemanticChecker;
 import front.SymbolTable;
 import front.TableEntry;
 import front.nodes.*;
-import javafx.scene.control.Tab;
 import mid.ircode.*;
 
 import java.util.ArrayList;
@@ -20,8 +19,9 @@ public class MidCodeGenerator {
     private static FuncDef currentFuncDef = null;
     private static BasicBlock currentBasicBlock = null;
     private static int depth = 1;
+    private static final IrModule IR_MODULE = new IrModule();
 
-    public static void compileUnitToIr(CompileUnitNode compileUnitNode) {
+    public static IrModule compileUnitToIr(CompileUnitNode compileUnitNode) {
         List<DeclNode> declNodes = compileUnitNode.declNodes();
         List<FuncDefNode> funcDefNodes = compileUnitNode.funcDefNodes();
         FuncDefNode mainFuncDef = compileUnitNode.mainFuncDef();
@@ -32,6 +32,7 @@ public class MidCodeGenerator {
             funcDefNodeToIr(funcDefNode);
         }
         funcDefNodeToIr(mainFuncDef);
+        return IR_MODULE;
     }
 
     public static void declNodeToIr(DeclNode declNode) {
@@ -41,7 +42,7 @@ public class MidCodeGenerator {
                 TableEntry tableEntry = currentTable.getSymbol(defNode.ident());
                 tableEntry.simplify(currentTable);
                 if (currentTable.isGlobalTable()) {
-                    IrModule.getGlobalVarDefs().add(tableEntry);
+                    IR_MODULE.getGlobalVarDefs().add(tableEntry);
                 } else {
                     VarDef varDef = new VarDef(tableEntry);
                     currentBasicBlock.addAfter(varDef);
@@ -60,7 +61,7 @@ public class MidCodeGenerator {
 
         currentFuncDef = new FuncDef(FUNC_TABLE.get(funcDefNode.name()));
         blockNodeToIr(funcDefNode.blockNode());
-        IrModule.getFuncDefs().add(currentFuncDef);
+        IR_MODULE.getFuncDefs().add(currentFuncDef);
 
         currentFuncDef = temp;
     }
@@ -70,6 +71,7 @@ public class MidCodeGenerator {
         //切换环境
         SymbolTable temp = currentTable;
         currentTable = blockNode.getSymbolTable();
+        currentFuncDef.addLocalVar(currentTable);
         depth += 1;
         //new basic block
         String label = LabelCounter.getLabel();

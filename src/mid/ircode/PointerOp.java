@@ -28,4 +28,16 @@ public class PointerOp extends InstructionLinkNode {
                     + "i32* " + dst.toNameIr();
         }
     }
+
+    public TableEntry getDst() {
+        return dst;
+    }
+
+    public Operand getSrc() {
+        return src;
+    }
+
+    public Op getOp() {
+        return op;
+    }
 }

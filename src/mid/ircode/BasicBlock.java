@@ -1,5 +1,9 @@
 package mid.ircode;
 
+import front.TableEntry;
+
+import java.util.HashSet;
+import java.util.List;
 import java.util.StringJoiner;
 
 public class BasicBlock extends InstructionLinkNode {
@@ -45,5 +49,9 @@ public class BasicBlock extends InstructionLinkNode {
             ptr = ptr.next();
         }
         return sj.toString();
+    }
+
+    public InstructionLinkNode getEnd() {
+        return end;
     }
 }
