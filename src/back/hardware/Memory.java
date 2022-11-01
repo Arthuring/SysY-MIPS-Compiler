@@ -39,4 +39,12 @@ public class Memory {
         globalVarMap.put(tableEntry, RF.GP_INIT + offset);
         return offset;
     }
+
+    public int loadWord(int offset) {
+        return memoryMap.getOrDefault(offset, 0);
+    }
+
+    public int getGlobalOffset() {
+        return globalOffset;
+    }
 }

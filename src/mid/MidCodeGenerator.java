@@ -221,6 +221,7 @@ public class MidCodeGenerator {
             if (putIntCnt < valueCnt) {
                 Operand result = expNodeToIr(args.get(putIntCnt));
                 currentBasicBlock.addAfter(new PrintInt(result));
+                putIntCnt += 1;
             }
         }
     }

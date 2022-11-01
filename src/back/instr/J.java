@@ -4,21 +4,21 @@ import back.hardware.RF;
 
 import java.util.StringJoiner;
 
-public class Mflo extends MipsInstr {
-    private final int rd;
+public class J extends MipsInstr {
+    private final String target;
 
-    public Mflo(int rd) {
-        this.rd = rd;
+    public J(String target) {
+        this.target = target;
     }
 
-    public int getRd() {
-        return rd;
+    public String getTarget() {
+        return target;
     }
 
     public String toMips() {
         StringJoiner sj = new StringJoiner("\n");
         sj.add(super.toMips());
-        String sb = "mflo " + "$" + RF.ID_TO_NAME.get(rd);
+        String sb = "j " + target;
         StringBuilder stringBuilder = new StringBuilder(sb);
         if (!super.getComment().equals("")) {
             stringBuilder.append("\t# ").append(super.getComment());

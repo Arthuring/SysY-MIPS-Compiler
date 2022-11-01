@@ -1,3 +1,5 @@
+import back.MipsObject;
+import back.Translator;
 import exception.CompileExc;
 import front.CompileUnit;
 import front.Lexer;
@@ -74,12 +76,18 @@ public class Compiler {
         errs.addAll(SemanticChecker.getError());
         List<CompileExc> excs = new ArrayList<>(errs);
         IrModule irModule;
+        MipsObject mipsObject;
         if (excs.size() == 0) {
             irModule = MidCodeGenerator.compileUnitToIr(compileUnitNode);
+            mipsObject = (new Translator(irModule)).toMips();
         } else {
+            System.out.println("error happened");
             irModule = new IrModule();
+            mipsObject = new MipsObject();
         }
-        output(outputFile, irModule.toIr(), excs);
+        output("llvm_ir.txt", irModule.toIr(), excs);
+        output("mips.txt", mipsObject.toMips(), excs);
+
     }
 
     public static void main(String[] args) throws Exception {

@@ -1,5 +1,9 @@
 package back.instr;
 
+import back.hardware.RF;
+
+import java.util.StringJoiner;
+
 public class Addiu extends MipsInstr {
     private final int rd;
     private final int rs;
@@ -30,4 +34,17 @@ public class Addiu extends MipsInstr {
         return rs;
     }
 
+    @Override
+    public String toMips() {
+        StringJoiner sj = new StringJoiner("\n");
+        sj.add(super.toMips());
+        String sb = "addiu " + "$" + RF.ID_TO_NAME.get(rd) + ", " +
+                "$" + RF.ID_TO_NAME.get(rs) + ", " + imm;
+        StringBuilder stringBuilder = new StringBuilder(sb);
+        if (!super.getComment().equals("")) {
+            stringBuilder.append("\t# ").append(super.getComment());
+        }
+        sj.add(stringBuilder.toString());
+        return sj.toString();
+    }
 }

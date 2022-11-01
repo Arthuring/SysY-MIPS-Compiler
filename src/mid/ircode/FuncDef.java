@@ -52,7 +52,7 @@ public class FuncDef extends InstructionLinkNode {
 
     public int calculateStackSpace() {
         if (space == null) {
-            space = 4; //for return value
+            space = 0;
             HashSet<TableEntry> allocatedVars = new HashSet<>();
             for (TableEntry tableEntry : funcEntry.args()) {
                 tableEntry.setAddress(Memory.roundUp(space, 4));
