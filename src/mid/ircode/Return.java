@@ -15,8 +15,12 @@ public class Return extends InstructionLinkNode {
 
     @Override
     public String toIr() {
-        return "\tret " + ((returnValue instanceof Immediate) ? "i32" :
-                TableEntry.TO_IR.get(((TableEntry) returnValue).valueType))
-                + " " + returnValue.toNameIr();
+        if (returnValue != null) {
+            return "\tret " + ((returnValue instanceof Immediate) ? "i32" :
+                    TableEntry.TO_IR.get(((TableEntry) returnValue).valueType))
+                    + " " + returnValue.toNameIr();
+        } else {
+            return "\t ret void";
+        }
     }
 }

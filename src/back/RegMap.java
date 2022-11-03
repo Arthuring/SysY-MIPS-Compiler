@@ -5,7 +5,14 @@ import back.instr.Lw;
 import back.instr.Sw;
 import front.TableEntry;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 
 public class RegMap {
     private static final Map<Integer, TableEntry> BUSY_REG_TO_VAR = new HashMap<>();

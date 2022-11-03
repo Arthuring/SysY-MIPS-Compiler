@@ -30,7 +30,8 @@ public class Memory {
         int offset = roundUp(globalOffset, 4);
         globalOffset = roundUp(globalOffset, 4);
         if (tableEntry.refType == TableEntry.RefType.ITEM) {
-            memoryMap.put(RF.GP_INIT + offset, ((NumberNode) tableEntry.initValue).number());
+            int value = tableEntry.initValue == null ? 0 : ((NumberNode) tableEntry.initValue).number();
+            memoryMap.put(RF.GP_INIT + offset, value);
             globalOffset += tableEntry.valueType.sizeof();
         } else {
             //TODO : 数组
@@ -41,7 +42,7 @@ public class Memory {
     }
 
     public int loadWord(int offset) {
-        return memoryMap.getOrDefault(offset, 0);
+        return memoryMap.getOrDefault(RF.GP_INIT + offset, 0);
     }
 
     public int getGlobalOffset() {

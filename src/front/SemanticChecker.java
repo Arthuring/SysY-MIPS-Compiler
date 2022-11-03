@@ -72,25 +72,24 @@ public class SemanticChecker {
         CompileUnit.Type type = unit.type() == CompileUnit.Type.ConstDecl ?
                 childUnits.get(1).childUnits().get(0).type() :
                 childUnits.get(0).childUnits().get(0).type();
-        DeclNode declNode = new DeclNode(unit.type() == CompileUnit.Type.ConstDecl, type,
-                childUnits.stream().filter(x -> x.type() == CompileUnit.Type.ConstDef ||
-                                x.type() == CompileUnit.Type.VarDef)
-                        .map(SemanticChecker::buildDefNode)
-                        .collect(Collectors.toList()));
-        List<DefNode> defNodeList = declNode.defNodeList();
-        //add symbols to table
-        for (DefNode defNode : defNodeList) {
+        List<CompileUnit> defUnits = childUnits.stream().filter(x -> x.type() == CompileUnit.Type.ConstDef ||
+                x.type() == CompileUnit.Type.VarDef).collect(Collectors.toList());
+        boolean isConst = unit.type() == CompileUnit.Type.ConstDecl;
+        List<DefNode> defNodeList = new ArrayList<>();
+        for (CompileUnit defUnit : defUnits) {
+            DefNode defNode = buildDefNode(defUnit);
+            defNodeList.add(defNode);
+            //add symbols to table
             try {
                 if (currentTable.isGlobalTable() && FUNC_TABLE.containsKey(defNode.ident())) {
                     throw new CompileExc(CompileExc.ErrType.REDEF, defNode.line());
                 }
-                currentTable.addVarSymbol(defNode, depth, declNode.isConst(), declNode.getType());
+                currentTable.addVarSymbol(defNode, depth, isConst, type);
             } catch (CompileExc e) {
                 ERROR.add(e);
             }
-
         }
-        return declNode;
+        return new DeclNode(isConst, type, defNodeList);
     }
 
     public static FuncDefNode buildFuncDefNode(CompileUnit compileUnit) {

@@ -4,8 +4,6 @@ import back.hardware.Memory;
 import back.hardware.RF;
 import back.instr.MipsInstr;
 import mid.StringCounter;
-import mid.ircode.Input;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -84,6 +82,7 @@ public class MipsObject {
             sj.add(stringStringEntry.getValue() + ":" + " .asciiz " +
                     "\"" + stringStringEntry.getKey() + "\"");
         }
+        sj.add(".data 0x" + Integer.toHexString(DATA_START_ADDR));
         for (int i = 0; i < initMem.getGlobalOffset(); i += 4) {
             sj.add(".word " + initMem.loadWord(i));
         }

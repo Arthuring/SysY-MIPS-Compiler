@@ -19,7 +19,7 @@ public class PrintfNode extends FuncCallNode {
     }
 
     public void checkArgNum() throws CompileExc {
-        if (formatString.split("%d").length - 1 != super.args().size()) {
+        if (("\"" + formatString + "\"").split("%d").length - 1 != super.args().size()) {
             throw new CompileExc(CompileExc.ErrType.FORMAT_VAR_ERR, super.line());
         }
     }

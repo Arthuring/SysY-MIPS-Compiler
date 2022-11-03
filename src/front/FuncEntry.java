@@ -2,10 +2,12 @@ package front;
 
 import exception.CompileExc;
 import front.nodes.FuncParamNode;
-import javafx.scene.control.Tab;
-import mid.ircode.BasicBlock;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.StringJoiner;
 
 public class FuncEntry {
 

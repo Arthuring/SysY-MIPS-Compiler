@@ -5,9 +5,12 @@ import front.nodes.ExprNode;
 import front.nodes.FuncParamNode;
 import front.nodes.NumberNode;
 import mid.ircode.Operand;
-import mid.ircode.Value;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public class TableEntry implements Operand {
     public enum ValueType {

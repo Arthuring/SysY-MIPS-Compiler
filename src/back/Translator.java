@@ -263,17 +263,17 @@ public class Translator {
                     break;
                 case MULT:
                     mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Mult(RF.GPR.V1, rs));
+                    mipsObject.addAfter(new Mult(rs, RF.GPR.V1));
                     mipsObject.addAfter(new Mflo(rd));
                     break;
                 case DIV:
                     mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Div(RF.GPR.V1, rs));
+                    mipsObject.addAfter(new Div(rs, RF.GPR.V1));
                     mipsObject.addAfter(new Mflo(rd));
                     break;
                 case MOD:
                     mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Div(RF.GPR.V1, rs));
+                    mipsObject.addAfter(new Div(rs, RF.GPR.V1));
                     mipsObject.addAfter(new Mfhi(rd));
                     break;
             }

@@ -2,7 +2,11 @@ package front;
 
 import exception.CompileExc;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class Parser {
     public static final List<CompileExc> COMPILE_EXCS = new ArrayList<>();
@@ -300,7 +304,8 @@ public class Parser {
                 if (tokenPackage.getCurToken().type() == Token.Type.INTCON ||
                         tokenPackage.getCurToken().type() == Token.Type.IDENFR ||
                         tokenPackage.getCurToken().type() == Token.Type.PLUS ||
-                        tokenPackage.getCurToken().type() == Token.Type.MINU) {
+                        tokenPackage.getCurToken().type() == Token.Type.MINU ||
+                        tokenPackage.getCurToken().type() == Token.Type.LPARENT) {
                     childUnit.add(parseExp(tokenPackage));
                 }
                 childUnit.add(endUnitBuilder(tokenPackage, Token.Type.SEMICN));

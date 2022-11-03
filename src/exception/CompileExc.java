@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.Objects;
 
 public class CompileExc extends Exception implements Comparable<CompileExc> {
+    private static final boolean DBG = true;
+
     public enum ErrCode {
         a, b, c, d, e, f, g, h, i, j, k, l, m
     }
@@ -70,6 +72,9 @@ public class CompileExc extends Exception implements Comparable<CompileExc> {
     }
 
     public String toString() {
+        if (DBG) {
+            return this.lineNo + " " + TYPE_2_CODE.get(this.errType).toString() + " " + errType.toString();
+        }
         return this.lineNo + " " + TYPE_2_CODE.get(this.errType).toString();
     }
 

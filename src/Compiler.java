@@ -35,9 +35,11 @@ public class Compiler {
             outputStream.println(outputString);
             outputStream.close();
         } else {
+            System.out.println("error happened");
             PrintWriter outputStream = new PrintWriter(new FileOutputStream("error.txt"));
             Collections.sort(errs);
             for (CompileExc e : errs) {
+                System.out.println(e);
                 outputStream.println(e);
             }
             outputStream.close();
@@ -81,6 +83,29 @@ public class Compiler {
             irModule = MidCodeGenerator.compileUnitToIr(compileUnitNode);
             mipsObject = (new Translator(irModule)).toMips();
         } else {
+            irModule = new IrModule();
+            mipsObject = new MipsObject();
+        }
+
+        output("mips.txt", mipsObject.toMips(), excs);
+
+    }
+
+    public static void mipsTest(String inputFile, String outputFile) throws Exception {
+        String sourceCode = input(inputFile);
+        List<Token> tokens = Lexer.tokenize(sourceCode);
+        TokenPackage tokenPackage = new TokenPackage(tokens);
+        CompileUnit compileUnit = Parser.parseCompUnit(tokenPackage);
+        Set<CompileExc> errs = new HashSet<>(Parser.COMPILE_EXCS);
+        CompileUnitNode compileUnitNode = SemanticChecker.buildCompileUnitNode(compileUnit);
+        errs.addAll(SemanticChecker.getError());
+        List<CompileExc> excs = new ArrayList<>(errs);
+        IrModule irModule;
+        MipsObject mipsObject;
+        if (excs.size() == 0) {
+            irModule = MidCodeGenerator.compileUnitToIr(compileUnitNode);
+            mipsObject = (new Translator(irModule)).toMips();
+        } else {
             System.out.println("error happened");
             irModule = new IrModule();
             mipsObject = new MipsObject();
@@ -90,9 +115,21 @@ public class Compiler {
 
     }
 
+    public static void returnTest(String inputFile, String outputFile) throws Exception {
+        String sourceCode = input(inputFile);
+        List<Token> tokens = Lexer.tokenize(sourceCode);
+        TokenPackage tokenPackage = new TokenPackage(tokens);
+        CompileUnit compileUnit = Parser.parseCompUnit(tokenPackage);
+        Set<CompileExc> errs = new HashSet<>(Parser.COMPILE_EXCS);
+        CompileUnitNode compileUnitNode = SemanticChecker.buildCompileUnitNode(compileUnit);
+        errs.addAll(SemanticChecker.getError());
+        List<CompileExc> excs = new ArrayList<>(errs);
+        output(outputFile, compileUnit.toString(), excs);
+    }
+
     public static void main(String[] args) throws Exception {
 
-        irTest("testfile.txt", "llvm_ir.txt");
+        mipsTest("testfile.txt", "output.txt");
 
     }
 }

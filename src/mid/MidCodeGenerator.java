@@ -4,8 +4,40 @@ import front.FuncEntry;
 import front.SemanticChecker;
 import front.SymbolTable;
 import front.TableEntry;
-import front.nodes.*;
-import mid.ircode.*;
+import front.nodes.AssignNode;
+import front.nodes.BinaryExpNode;
+import front.nodes.BlockItemNode;
+import front.nodes.BlockNode;
+import front.nodes.BreakStmtNode;
+import front.nodes.CompileUnitNode;
+import front.nodes.ContinueStmtNode;
+import front.nodes.DeclNode;
+import front.nodes.DefNode;
+import front.nodes.ExprNode;
+import front.nodes.FuncCallNode;
+import front.nodes.FuncDefNode;
+import front.nodes.GetintNode;
+import front.nodes.IfNode;
+import front.nodes.LValNode;
+import front.nodes.NumberNode;
+import front.nodes.PrintfNode;
+import front.nodes.ReturnNode;
+import front.nodes.StmtNode;
+import front.nodes.UnaryExpNode;
+import front.nodes.WhileNode;
+import mid.ircode.BasicBlock;
+import mid.ircode.BinaryOperator;
+import mid.ircode.Call;
+import mid.ircode.FuncDef;
+import mid.ircode.Immediate;
+import mid.ircode.Input;
+import mid.ircode.Operand;
+import mid.ircode.PointerOp;
+import mid.ircode.PrintInt;
+import mid.ircode.PrintStr;
+import mid.ircode.Return;
+import mid.ircode.UnaryOperator;
+import mid.ircode.VarDef;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -52,6 +84,11 @@ public class MidCodeGenerator {
                         currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.STORE, tableEntry, init));
                     }
                 }
+            }
+        } else {
+            for (DefNode defNode : defNodeList) {
+                TableEntry tableEntry = currentTable.getSymbol(defNode.ident());
+                tableEntry.simplify(currentTable);
             }
         }
     }
@@ -177,7 +214,8 @@ public class MidCodeGenerator {
         List<Operand> irArgs = new ArrayList<>();
         List<ExprNode> args = funcCallNode.args();
         for (ExprNode exprNode : args) {
-            irArgs.add(expNodeToIr(exprNode));
+            ExprNode simplifyedExpr = exprNode.simplify(currentTable);
+            irArgs.add(expNodeToIr(simplifyedExpr));
         }
         if (funcEntry.returnType() == TableEntry.ValueType.VOID) {
             currentBasicBlock.addAfter(new Call(funcEntry, irArgs));
@@ -197,7 +235,8 @@ public class MidCodeGenerator {
     public static void returnNodeToIr(ReturnNode returnNode) {
         Operand returnValue;
         if (returnNode.returnExpr() != null) {
-            returnValue = expNodeToIr(returnNode.returnExpr());
+            ExprNode returnExpr = returnNode.returnExpr().simplify(currentTable);
+            returnValue = expNodeToIr(returnExpr);
             currentBasicBlock.addAfter(new Return(returnValue));
         } else {
             currentBasicBlock.addAfter(new Return(null));
@@ -207,22 +246,38 @@ public class MidCodeGenerator {
 
     public static void printfNodeToIr(PrintfNode printfNode) {
         String formatString = printfNode.formatString();
-        List<String> formatStrings = Arrays.stream((formatString.split("%d")))
+        List<String> formatStrings = Arrays.stream((formatString.split("(?<=%d)|(?=%d)")))
                 .collect(Collectors.toList());
-        int stringCnt = formatStrings.size();
-        int valueCnt = stringCnt - 1;
         int putIntCnt = 0;
         List<ExprNode> args = printfNode.args();
         for (String string : formatStrings) {
-            if (!string.equals("")) {
+            if (!string.equals("%d")) {
                 String label = StringCounter.findString(string);
                 currentBasicBlock.addAfter(new PrintStr(label, string));
-            }
-            if (putIntCnt < valueCnt) {
-                Operand result = expNodeToIr(args.get(putIntCnt));
+            } else {
+                ExprNode simplifiedExpr = args.get(putIntCnt).simplify(currentTable);
+                Operand result = expNodeToIr(simplifiedExpr);
                 currentBasicBlock.addAfter(new PrintInt(result));
                 putIntCnt += 1;
             }
         }
+//        String formatString = printfNode.formatString();
+//        int begin = 0;
+//        int argCnt = 0;
+//        List<ExprNode> args = printfNode.args();
+//        for (int end = 0; end < formatString.length(); end++) {
+//            if (formatString.charAt(end) == '%') {
+//                String label = StringCounter.findString(formatString.substring(begin, end));
+//                currentBasicBlock.addAfter(new PrintStr(label, formatString.substring(begin, end)));
+//                end += 1;
+//                Operand result = expNodeToIr(args.get(argCnt));
+//                currentBasicBlock.addAfter(new PrintInt(result));
+//                begin = end + 2;
+//            }
+//        }
+//        if (begin < formatString.length()) {
+//            String label = StringCounter.findString(formatString.substring(begin));
+//            currentBasicBlock.addAfter(new PrintStr(label, formatString.substring(begin)));
+//        }
     }
 }

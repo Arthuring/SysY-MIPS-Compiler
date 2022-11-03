@@ -51,6 +51,7 @@ public class Call extends InstructionLinkNode {
         for (Operand operand : args) {
             sj.add(operand.toParamIr());
         }
+        sb.append(sj);
         sb.append(")");
         return sb.toString();
     }

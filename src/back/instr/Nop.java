@@ -1,7 +1,5 @@
 package back.instr;
 
-import back.hardware.RF;
-
 import java.util.StringJoiner;
 
 public class Nop extends MipsInstr {

@@ -1,6 +1,5 @@
 package mid.ircode;
 
-import front.CompileUnit;
 import front.TableEntry;
 import front.nodes.BinaryExpNode;
 
