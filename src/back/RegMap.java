@@ -5,14 +5,7 @@ import back.instr.Lw;
 import back.instr.Sw;
 import front.TableEntry;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class RegMap {
     private static final Map<Integer, TableEntry> BUSY_REG_TO_VAR = new HashMap<>();
@@ -22,7 +15,7 @@ public class RegMap {
             5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25
     ));
     private static final Set<Integer> freeRegList = new HashSet<>(availableReg);
-    private static final Set<Integer> lruList = new HashSet<>();
+    private static final Set<Integer> lruList = new LinkedHashSet<>();
 
 
     /**
@@ -41,23 +34,7 @@ public class RegMap {
             return VAR_TO_BUST_REG.get(tableEntry);
         }
         //未被分配
-        if (!freeRegList.isEmpty()) {
-            Iterator<Integer> iterator = freeRegList.iterator();
-            int allocReg = iterator.next();
-            iterator.remove();
-            BUSY_REG_TO_VAR.put(allocReg, tableEntry);
-            VAR_TO_BUST_REG.put(tableEntry, allocReg);
-
-            mipsObject.addIrDescription(RF.ID_TO_NAME.get(allocReg) + "->" + tableEntry.toNameIr());
-            if (needLoad) {
-                mipsObject.addIrDescription(RF.ID_TO_NAME.get(allocReg) + "->" + tableEntry.toNameIr()
-                        + " = " + "[" + tableEntry.address + "]");
-                loadVar(allocReg, tableEntry, mipsObject);
-            }
-            //更新LRU
-            lruList.add(allocReg);
-            return allocReg;
-        } else {
+        if (freeRegList.isEmpty()) {
             //找到即将被替换的寄存器
             Iterator<Integer> iterator = lruList.iterator();
             int allocReg = iterator.next();
@@ -69,13 +46,26 @@ public class RegMap {
             //清除旧映射
             BUSY_REG_TO_VAR.remove(allocReg);
             VAR_TO_BUST_REG.remove(replaced);
-            //添加新映射
-            BUSY_REG_TO_VAR.put(allocReg, tableEntry);
-            VAR_TO_BUST_REG.put(tableEntry, allocReg);
-            //更新LRUList
-            lruList.add(allocReg);
-            return allocReg;
+
+            freeRegList.add(allocReg);
         }
+
+        Iterator<Integer> iterator = freeRegList.iterator();
+        int allocReg = iterator.next();
+        iterator.remove();
+        BUSY_REG_TO_VAR.put(allocReg, tableEntry);
+        VAR_TO_BUST_REG.put(tableEntry, allocReg);
+
+        mipsObject.addIrDescription(RF.ID_TO_NAME.get(allocReg) + "->" + tableEntry.toNameIr());
+        if (needLoad) {
+            mipsObject.addIrDescription(RF.ID_TO_NAME.get(allocReg) + "->" + tableEntry.toNameIr()
+                    + " = " + "[" + tableEntry.address + "]");
+            loadVar(allocReg, tableEntry, mipsObject);
+        }
+        //更新LRU
+        lruList.add(allocReg);
+        return allocReg;
+
     }
 
     public static void saveReplacedVar(int rt, TableEntry tableEntry, MipsObject mipsObject) {
