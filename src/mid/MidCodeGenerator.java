@@ -151,6 +151,10 @@ public class MidCodeGenerator {
         }
     }
 
+    public static void ifNodeToIr(IfNode ifNode){
+
+    }
+
     public static void assignNodeToIr(AssignNode assignNode) {
         LValNode left = assignNode.lVal();
         TableEntry dst = currentTable.getSymbol(left.ident());

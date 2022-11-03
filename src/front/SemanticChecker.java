@@ -325,23 +325,60 @@ public class SemanticChecker {
     }
 
     public static IfNode buildIfNode(CompileUnit compileUnit) {
+        BlockNode.BlockType temp = currentBlock;
+        currentBlock = BlockNode.BlockType.BRANCH;
         List<CompileUnit> childUnits = compileUnit.childUnits();
         ExprNode cond = buildExprNode(childUnits.get(2));
         StmtNode ifStmt = buildStmtNode(childUnits.get(4));
+        BlockNode blockedIfStmt;
+        if (!(ifStmt instanceof BlockNode)) {
+            blockedIfStmt = new BlockNode(new ArrayList<BlockItemNode>() {
+                {
+                    add(ifStmt);
+                }
+            }, BlockNode.BlockType.BRANCH);
+        } else {
+            blockedIfStmt = (BlockNode) ifStmt;
+        }
         if (childUnits.size() >= 6 && childUnits.get(5).type() == CompileUnit.Type.ELSETK) {
             StmtNode elseStmt = buildStmtNode(childUnits.get(childUnits.size() - 1));
-            return new IfNode(cond, ifStmt, elseStmt);
+            BlockNode blockedElseStmt;
+            if (!(elseStmt instanceof BlockNode)) {
+                blockedElseStmt = new BlockNode(new ArrayList<BlockItemNode>() {
+                    {
+                        add(elseStmt);
+                    }
+                }, BlockNode.BlockType.BRANCH);
+            } else {
+                blockedElseStmt = (BlockNode) elseStmt;
+            }
+            currentBlock = temp;
+            return new IfNode(cond, blockedIfStmt, blockedElseStmt);
         }
-        return new IfNode(cond, ifStmt);
+        currentBlock = temp;
+        return new IfNode(cond, blockedIfStmt);
     }
 
     public static WhileNode buildWhileNode(CompileUnit compileUnit) {
         cycleDepth += 1;
         List<CompileUnit> childUnits = compileUnit.childUnits();
+        BlockNode.BlockType temp = currentBlock;
+        currentBlock = BlockNode.BlockType.LOOP;
         ExprNode cond = buildExprNode(childUnits.get(2));
         StmtNode whileStmt = buildStmtNode(childUnits.get(childUnits.size() - 1));
+        BlockNode blockedWhileStmt;
+        if (!(whileStmt instanceof BlockNode)) {
+            blockedWhileStmt = new BlockNode(new ArrayList<BlockItemNode>() {
+                {
+                    add(whileStmt);
+                }
+            }, BlockNode.BlockType.LOOP);
+        } else {
+            blockedWhileStmt = (BlockNode) whileStmt;
+        }
+        currentBlock = temp;
         cycleDepth -= 1;
-        return new WhileNode(cond, whileStmt);
+        return new WhileNode(cond, blockedWhileStmt);
     }
 
     public static LValNode buildLValNode(CompileUnit compileUnit) {
@@ -432,7 +469,7 @@ public class SemanticChecker {
         List<CompileUnit> childUnit = compileUnit.childUnits();
         int line = childUnit.get(0).lineNo();
         ReturnNode returnNode = new ReturnNode(line, buildExprNode(childUnit.get(1)));
-        if (currentBlock == BlockNode.BlockType.FUNC &&
+        if (currentFunc != null &&
                 currentFunc.returnType() == TableEntry.ValueType.VOID) {
             if (returnNode.returnExpr() != null) {
                 if (returnNode.returnExpr().valueType != TableEntry.ValueType.VOID) {
