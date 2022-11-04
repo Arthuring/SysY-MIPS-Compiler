@@ -113,7 +113,17 @@ public class MidCodeGenerator {
         currentFuncDef.addLocalVar(currentTable);
         depth += 1;
         //new basic block
-        String label = LabelCounter.getLabel();
+        String label = null;
+        if(blockNode.type() == BlockNode.BlockType.BRANCH && currentBranchLabel != null){
+            label = currentBranchLabel;
+            currentBranchLabel = null;
+        } else if(blockNode.type() == BlockNode.BlockType.LOOP &&  currentLoopLabel != null){
+            label = currentLoopLabel;
+            currentLoopLabel = null;
+        }
+        if(label == null){
+            label = LabelCounter.getLabel();
+        }
         currentBasicBlock = new BasicBlock(label);
         currentFuncDef.addBlock(currentBasicBlock);
 
@@ -156,10 +166,13 @@ public class MidCodeGenerator {
     public static void ifNodeToIr(IfNode ifNode){
         ExprNode simplifiedCond = ifNode.cond().simplify(currentTable);
         Operand dst = expNodeToIr(simplifiedCond);
+        //TODO: branch stmt
         if(ifNode.elseStmt() != null){
             currentBranchLabel = LabelCounter.getLabel();
-            blockNodeToIr(ifNode.elseStmt());
+            blockNodeToIr((BlockNode) ifNode.elseStmt());
         }
+        currentBranchLabel = LabelCounter.getLabel();
+        blockNodeToIr((BlockNode) ifNode.ifStmt());
 
     }
 
