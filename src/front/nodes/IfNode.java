@@ -2,16 +2,16 @@ package front.nodes;
 
 public class IfNode implements StmtNode {
     private final ExprNode cond;
-    private final StmtNode ifStmt;
-    private final StmtNode elseStmt;
+    private final BlockNode ifStmt;
+    private final BlockNode elseStmt;
 
-    public IfNode(ExprNode cond, StmtNode ifStmt, StmtNode elseStmt) {
+    public IfNode(ExprNode cond, BlockNode ifStmt, BlockNode elseStmt) {
         this.cond = cond;
         this.ifStmt = ifStmt;
         this.elseStmt = elseStmt;
     }
 
-    public IfNode(ExprNode cond, StmtNode ifStmt) {
+    public IfNode(ExprNode cond, BlockNode ifStmt) {
         this.cond = cond;
         this.ifStmt = ifStmt;
         this.elseStmt = null;

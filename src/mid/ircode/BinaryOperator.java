@@ -8,7 +8,7 @@ import java.util.Map;
 
 public class BinaryOperator extends InstructionLinkNode {
     public enum Op {
-        ADD, SUB, MULT, DIV, MOD
+        ADD, SUB, MULT, DIV, MOD, EQL, GEQ, GRE, LEQ, LSS, NEQ
     }
 
     private static final Map<BinaryExpNode.BinaryOp, Op> OP_2_OP = new HashMap<BinaryExpNode.BinaryOp, Op>() {
@@ -18,6 +18,12 @@ public class BinaryOperator extends InstructionLinkNode {
             put(BinaryExpNode.BinaryOp.MUL, Op.MULT);
             put(BinaryExpNode.BinaryOp.DIV, Op.DIV);
             put(BinaryExpNode.BinaryOp.MOD, Op.MOD);
+            put(BinaryExpNode.BinaryOp.EQL, Op.EQL);
+            put(BinaryExpNode.BinaryOp.GEQ, Op.GEQ);
+            put(BinaryExpNode.BinaryOp.GRE, Op.GRE);
+            put(BinaryExpNode.BinaryOp.LEQ, Op.LEQ);
+            put(BinaryExpNode.BinaryOp.LSS, Op.LSS);
+            put(BinaryExpNode.BinaryOp.NEQ, Op.EQL);
         }
     };
 

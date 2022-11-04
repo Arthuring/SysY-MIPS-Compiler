@@ -98,14 +98,26 @@ public class BinaryExpNode extends ExprNode {
                 case MOD:
                     return new NumberNode(((NumberNode) simplifiedLeft).number()
                             % ((NumberNode) simplifiedRight).number());
+                case EQL:
+                    return new NumberNode(((NumberNode) simplifiedLeft).number()
+                            == ((NumberNode)simplifiedRight).number() ? 1 : 0);
+                case GEQ:
+                    return new NumberNode(((NumberNode) simplifiedLeft).number()
+                            >= ((NumberNode)simplifiedRight).number() ? 1 : 0);
+                case GRE:
+                    return new NumberNode(((NumberNode) simplifiedLeft).number()
+                            > ((NumberNode)simplifiedRight).number() ? 1 : 0);
+                case LEQ:
+                    return new NumberNode(((NumberNode) simplifiedLeft).number()
+                            <= ((NumberNode)simplifiedRight).number() ? 1 : 0);
+                case LSS:
+                    return new NumberNode(((NumberNode) simplifiedLeft).number()
+                            < ((NumberNode)simplifiedRight).number() ? 1 : 0);
+                case NEQ:
+                    return new NumberNode(((NumberNode) simplifiedLeft).number()
+                            != ((NumberNode)simplifiedRight).number() ? 1 : 0);
                 case OR:
                 case AND:
-                case EQL:
-                case GEQ:
-                case GRE:
-                case LEQ:
-                case LSS:
-                case NEQ:
                 default:
                     return new BinaryExpNode(simplifiedLeft, op, simplifiedRight);
             }

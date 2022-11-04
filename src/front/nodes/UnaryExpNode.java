@@ -58,7 +58,7 @@ public class UnaryExpNode extends ExprNode {
         if (simplifiedExpNode instanceof NumberNode) {
             switch (op) {
                 case NOT:
-                    return new UnaryExpNode(CompileUnit.Type.NOT, simplifiedExpNode);
+                    return new NumberNode(((NumberNode) simplifiedExpNode).number() != 0 ? 0 : 1);
                 case MINU:
                     return new NumberNode(((NumberNode) simplifiedExpNode).number() * -1);
                 case PLUS:

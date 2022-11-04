@@ -1,4 +1,4 @@
 package mid.ircode;
 
-public class Branch {
+public class Branch extends InstructionLinkNode {
 }

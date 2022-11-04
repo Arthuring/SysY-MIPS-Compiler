@@ -2,7 +2,7 @@
 *.jar
 *.asm
 SysY-MIPS-Compiler.iml
-testfile.txt
+testfiles/testfile.txt
 output.txt
 *.txt
 ### MonoDevelop template

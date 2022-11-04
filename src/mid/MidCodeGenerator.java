@@ -52,6 +52,8 @@ public class MidCodeGenerator {
     private static BasicBlock currentBasicBlock = null;
     private static int depth = 1;
     private static final IrModule IR_MODULE = new IrModule();
+    private static String currentBranchLabel = null;
+    private static String currentLoopLabel = null;
 
     public static IrModule compileUnitToIr(CompileUnitNode compileUnitNode) {
         List<DeclNode> declNodes = compileUnitNode.declNodes();
@@ -149,6 +151,16 @@ public class MidCodeGenerator {
         } else if (stmtNode instanceof ReturnNode) {
             returnNodeToIr((ReturnNode) stmtNode);
         }
+    }
+
+    public static void ifNodeToIr(IfNode ifNode){
+        ExprNode simplifiedCond = ifNode.cond().simplify(currentTable);
+        Operand dst = expNodeToIr(simplifiedCond);
+        if(ifNode.elseStmt() != null){
+            currentBranchLabel = LabelCounter.getLabel();
+            blockNodeToIr(ifNode.elseStmt());
+        }
+
     }
 
     public static void assignNodeToIr(AssignNode assignNode) {
