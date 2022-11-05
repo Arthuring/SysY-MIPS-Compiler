@@ -25,19 +25,7 @@ import front.nodes.ReturnNode;
 import front.nodes.StmtNode;
 import front.nodes.UnaryExpNode;
 import front.nodes.WhileNode;
-import mid.ircode.BasicBlock;
-import mid.ircode.BinaryOperator;
-import mid.ircode.Call;
-import mid.ircode.FuncDef;
-import mid.ircode.Immediate;
-import mid.ircode.Input;
-import mid.ircode.Operand;
-import mid.ircode.PointerOp;
-import mid.ircode.PrintInt;
-import mid.ircode.PrintStr;
-import mid.ircode.Return;
-import mid.ircode.UnaryOperator;
-import mid.ircode.VarDef;
+import mid.ircode.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,6 +42,9 @@ public class MidCodeGenerator {
     private static final IrModule IR_MODULE = new IrModule();
     private static String currentBranchLabel = null;
     private static String currentLoopLabel = null;
+    private static String currentLoopCond = null;
+    private static String currentLoopBody = null;
+    private static String endTag = "_end";
 
     public static IrModule compileUnitToIr(CompileUnitNode compileUnitNode) {
         List<DeclNode> declNodes = compileUnitNode.declNodes();
@@ -114,14 +105,14 @@ public class MidCodeGenerator {
         depth += 1;
         //new basic block
         String label = null;
-        if(blockNode.type() == BlockNode.BlockType.BRANCH && currentBranchLabel != null){
+        if (blockNode.type() == BlockNode.BlockType.BRANCH && currentBranchLabel != null) {
             label = currentBranchLabel;
             currentBranchLabel = null;
-        } else if(blockNode.type() == BlockNode.BlockType.LOOP &&  currentLoopLabel != null){
+        } else if (blockNode.type() == BlockNode.BlockType.LOOP && currentLoopLabel != null) {
             label = currentLoopLabel;
             currentLoopLabel = null;
         }
-        if(label == null){
+        if (label == null) {
             label = LabelCounter.getLabel();
         }
         currentBasicBlock = new BasicBlock(label);
@@ -140,6 +131,11 @@ public class MidCodeGenerator {
         depth -= 1;
     }
 
+    public static void addNewBasicBlock(String label) {
+        currentBasicBlock = new BasicBlock(label);
+        currentFuncDef.addBlock(currentBasicBlock);
+    }
+
     public static void stmtNodeToIr(StmtNode stmtNode) {
         if (stmtNode instanceof AssignNode) {
             assignNodeToIr((AssignNode) stmtNode);
@@ -149,31 +145,83 @@ public class MidCodeGenerator {
             ExprNode exprNode = ((ExprNode) stmtNode).simplify(currentTable);
             expNodeToIr(exprNode);
         } else if (stmtNode instanceof BreakStmtNode) {
-            //TODO
+            breakStmtNodeToIr((BreakStmtNode) stmtNode);
         } else if (stmtNode instanceof ContinueStmtNode) {
-            //TODO
+            continueStmtNodeToIr((ContinueStmtNode) stmtNode);
         } else if (stmtNode instanceof BlockNode) {
             blockNodeToIr((BlockNode) stmtNode);
         } else if (stmtNode instanceof WhileNode) {
-            //TODO
+            whileNodeToIr((WhileNode) stmtNode);
         } else if (stmtNode instanceof IfNode) {
-            //TODO
+            ifNodeToIr((IfNode) stmtNode);
         } else if (stmtNode instanceof ReturnNode) {
             returnNodeToIr((ReturnNode) stmtNode);
         }
     }
 
-    public static void ifNodeToIr(IfNode ifNode){
+    public static void breakStmtNodeToIr(BreakStmtNode breakStmtNode) {
+        currentBasicBlock.addAfter(new Jump(currentLoopBody + endTag));
+        addNewBasicBlock(LabelCounter.getLabel());
+    }
+
+    public static void continueStmtNodeToIr(ContinueStmtNode continueStmtNode) {
+        currentBasicBlock.addAfter(new Jump(currentLoopCond));
+        addNewBasicBlock(LabelCounter.getLabel());
+    }
+
+    public static void whileNodeToIr(WhileNode whileNode) {
+        String whileCondLabel = LabelCounter.getLabel("while_cond");
+        String whileBodyLabel = LabelCounter.getLabel("while_body");
+        String tempLoopCond = currentLoopCond;
+        String tempLoopBody = currentLoopBody;
+        currentLoopCond = whileCondLabel;
+        currentLoopBody = whileBodyLabel;
+        //branch
+        addNewBasicBlock(whileCondLabel);
+        ExprNode simplifiedCond = whileNode.cond().simplify(currentTable);
+        Operand dst = expNodeToIr(simplifiedCond);
+        currentBasicBlock.addAfter(new Branch(dst, whileBodyLabel,
+                whileBodyLabel + endTag, Branch.BrOp.BEQ));
+        //whileStmt
+        currentLoopLabel = whileBodyLabel;
+        blockNodeToIr((BlockNode) whileNode.whileStmt());
+        //whileStmtEnd
+        currentBasicBlock.addAfter(new Jump(whileCondLabel));
+        currentBasicBlock.setEndLabel(whileBodyLabel + endTag);
+
+        currentLoopCond = tempLoopCond;
+        currentLoopBody = tempLoopBody;
+        addNewBasicBlock(LabelCounter.getLabel());
+    }
+
+
+    public static void ifNodeToIr(IfNode ifNode) {
         ExprNode simplifiedCond = ifNode.cond().simplify(currentTable);
         Operand dst = expNodeToIr(simplifiedCond);
-        //TODO: branch stmt
-        if(ifNode.elseStmt() != null){
-            currentBranchLabel = LabelCounter.getLabel();
+        if (ifNode.elseStmt() != null) {
+            String ifLabel = LabelCounter.getLabel("if");
+            String elseLabel = LabelCounter.getLabel("else");
+            //branch
+            currentBasicBlock.addAfter(new Branch(dst, ifLabel, elseLabel, Branch.BrOp.BNE));
+            // elseStmt
+            currentBranchLabel = elseLabel;
             blockNodeToIr((BlockNode) ifNode.elseStmt());
+            currentBasicBlock.addAfter(new Jump(ifLabel + endTag));
+            currentBasicBlock.setEndLabel(elseLabel + endTag);
+            // ifStmt
+            currentBranchLabel = ifLabel;
+            blockNodeToIr((BlockNode) ifNode.ifStmt());
+            currentBasicBlock.setEndLabel(ifLabel + endTag);
+        } else {
+            String ifLabel = LabelCounter.getLabel("if");
+            //branch
+            currentBasicBlock.addAfter(new Branch(dst, ifLabel, ifLabel + endTag, Branch.BrOp.BEQ));
+            //ifStmt
+            currentBranchLabel = ifLabel;
+            blockNodeToIr((BlockNode) ifNode.ifStmt());
+            currentBasicBlock.setEndLabel(ifLabel + endTag);
         }
-        currentBranchLabel = LabelCounter.getLabel();
-        blockNodeToIr((BlockNode) ifNode.ifStmt());
-
+        addNewBasicBlock(LabelCounter.getLabel());
     }
 
     public static void assignNodeToIr(AssignNode assignNode) {
@@ -286,23 +334,5 @@ public class MidCodeGenerator {
                 putIntCnt += 1;
             }
         }
-//        String formatString = printfNode.formatString();
-//        int begin = 0;
-//        int argCnt = 0;
-//        List<ExprNode> args = printfNode.args();
-//        for (int end = 0; end < formatString.length(); end++) {
-//            if (formatString.charAt(end) == '%') {
-//                String label = StringCounter.findString(formatString.substring(begin, end));
-//                currentBasicBlock.addAfter(new PrintStr(label, formatString.substring(begin, end)));
-//                end += 1;
-//                Operand result = expNodeToIr(args.get(argCnt));
-//                currentBasicBlock.addAfter(new PrintInt(result));
-//                begin = end + 2;
-//            }
-//        }
-//        if (begin < formatString.length()) {
-//            String label = StringCounter.findString(formatString.substring(begin));
-//            currentBasicBlock.addAfter(new PrintStr(label, formatString.substring(begin)));
-//        }
     }
 }

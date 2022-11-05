@@ -7,14 +7,16 @@ import java.util.List;
 import java.util.StringJoiner;
 
 public class MipsInstr extends InstructionLinkNode {
-    private String label = "";
+    private List<String> label = new ArrayList<>();
     private final List<String> irDescriptions = new ArrayList<>();
     private String comment = "";
 
     public String toMips() {
         StringJoiner sj = new StringJoiner("\n");
-        if (!label.equals("")) {
-            sj.add(label + ":");
+        if (!label.isEmpty()) {
+            for (String labelItem : label) {
+                sj.add(labelItem + ":");
+            }
         }
         for (String description : irDescriptions) {
             String[] strings = description.split("\n");
@@ -25,12 +27,16 @@ public class MipsInstr extends InstructionLinkNode {
         return sj.toString();
     }
 
-    public String getLabel() {
+    public List<String> getLabel() {
         return label;
     }
 
+    public void setLabel(List<String> label) {
+        this.label.addAll(label);
+    }
+
     public void setLabel(String label) {
-        this.label = label;
+        this.label.add(label);
     }
 
     public void setIrDescription(List<String> irDescriptions) {

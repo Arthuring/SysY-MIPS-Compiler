@@ -81,13 +81,13 @@ public class Compiler {
         MipsObject mipsObject;
         if (excs.size() == 0) {
             irModule = MidCodeGenerator.compileUnitToIr(compileUnitNode);
-            mipsObject = (new Translator(irModule)).toMips();
+            //mipsObject = (new Translator(irModule)).toMips();
         } else {
             irModule = new IrModule();
             mipsObject = new MipsObject();
         }
 
-        output("mips.txt", mipsObject.toMips(), excs);
+        output("llvm_ir.txt", irModule.toIr(), excs);
 
     }
 

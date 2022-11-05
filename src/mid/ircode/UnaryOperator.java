@@ -15,6 +15,8 @@ public class UnaryOperator extends InstructionLinkNode {
         {
             put(Op.PLUS, "add");
             put(Op.MINU, "sub");
+            put(Op.NOT, "eq");
+
         }
     };
 
@@ -50,6 +52,20 @@ public class UnaryOperator extends InstructionLinkNode {
     }
 
     public String toIr() {
+        switch (op) {
+            case PLUS:
+            case MINU:
+                return "\t" + dst.toNameIr() + " = " + OP_TO_IR.get(op) + " "
+                        + TableEntry.TO_IR.get(dst.valueType) + " " +
+                        "0, " +
+                        src.toNameIr();
+            case NOT:
+                return "\t" + dst.toNameIr() + " = icmp " + OP_TO_IR.get(op) + " "
+                        + TableEntry.TO_IR.get(dst.valueType) + " " +
+                        "0, " +
+                        src.toNameIr();
+
+        }
         return "\t" + dst.toNameIr() + " = " + OP_TO_IR.get(op) + " "
                 + TableEntry.TO_IR.get(dst.valueType) + " " +
                 "0, " +

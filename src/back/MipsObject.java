@@ -4,10 +4,8 @@ import back.hardware.Memory;
 import back.hardware.RF;
 import back.instr.MipsInstr;
 import mid.StringCounter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.StringJoiner;
+
+import java.util.*;
 
 public class MipsObject {
     private final MipsInstr entry = new MipsInstr();
@@ -15,7 +13,7 @@ public class MipsObject {
     public static final int STR_START_ADDR = 0x10000000;
     public static final int DATA_START_ADDR = RF.GP_INIT;
     private final Memory initMem = new Memory();
-    private String labelToSet = null;
+    private List<String> labelToSet = new ArrayList<>();
     private final List<String> irDescription = new ArrayList<>();
     private String comment = null;
 
@@ -34,9 +32,9 @@ public class MipsObject {
     }
 
     public void addAfter(MipsInstr after) {
-        if (labelToSet != null) {
+        if (!labelToSet.isEmpty()) {
             after.setLabel(labelToSet);
-            labelToSet = null;
+            labelToSet.clear();
         }
         if (!irDescription.isEmpty()) {
             after.setIrDescription(irDescription);
@@ -62,17 +60,17 @@ public class MipsObject {
     }
 
     public void setLabelToSet(String labelToSet) {
-        this.labelToSet = labelToSet;
+        this.labelToSet.add(labelToSet);
     }
 
     public void addIrDescription(String irDescription) {
         if (irDescription != null) {
-            this.irDescription.add(irDescription);
+            this.irDescription.add(irDescription.replace("\t", ""));
         }
     }
 
     public void setComment(String comment) {
-        this.comment = comment;
+        this.comment = comment.replace("\t", "");
     }
 
     public String toMips() {
@@ -92,6 +90,11 @@ public class MipsObject {
         while (ptr.hasNext()) {
             sj.add(ptr.toMips());
             ptr = (MipsInstr) ptr.next();
+        }
+        if (!this.labelToSet.isEmpty()) {
+            for (String label : labelToSet) {
+                sj.add(label + ":");
+            }
         }
         return sj.toString();
     }

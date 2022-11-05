@@ -105,4 +105,17 @@ public class RegMap {
         freeRegList.addAll(availableReg);
     }
 
+    public static void clearWithoutSave(List<TableEntry> list) {
+        for (TableEntry temp : list) {
+            assert (temp.isTemp);
+            if (VAR_TO_BUST_REG.containsKey(temp)) {
+                int reg = VAR_TO_BUST_REG.get(temp);
+                VAR_TO_BUST_REG.remove(temp);
+                BUSY_REG_TO_VAR.remove(reg);
+                lruList.remove(reg);
+                freeRegList.add(reg);
+            }
+        }
+    }
+
 }

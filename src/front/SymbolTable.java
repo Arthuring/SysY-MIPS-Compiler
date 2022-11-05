@@ -32,7 +32,6 @@ public class SymbolTable {
             throw new CompileExc(CompileExc.ErrType.REDEF, defNode.line());
         } else {
             TableEntry tableEntry = new TableEntry(defNode, isConst, level, valueType, isGlobalTable());
-            //TODO: GLOBAL初始化为0
             varSymbols.put(defNode.ident(), tableEntry);
 
         }

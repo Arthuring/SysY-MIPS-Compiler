@@ -325,10 +325,12 @@ public class SemanticChecker {
     }
 
     public static IfNode buildIfNode(CompileUnit compileUnit) {
-        BlockNode.BlockType temp = currentBlock;
-        currentBlock = BlockNode.BlockType.BRANCH;
         List<CompileUnit> childUnits = compileUnit.childUnits();
         ExprNode cond = buildExprNode(childUnits.get(2));
+        //set block type as branch
+        BlockNode.BlockType temp = currentBlock;
+        currentBlock = BlockNode.BlockType.BRANCH;
+
         StmtNode ifStmt = buildStmtNode(childUnits.get(4));
         BlockNode blockedIfStmt;
         if (!(ifStmt instanceof BlockNode)) {
@@ -337,6 +339,9 @@ public class SemanticChecker {
                     add(ifStmt);
                 }
             }, BlockNode.BlockType.BRANCH);
+            blockedIfStmt.setFuncEntry(currentFunc);
+            blockedIfStmt.setSymbolTable(currentTable);
+            blockedIfStmt.setDepth(depth);
         } else {
             blockedIfStmt = (BlockNode) ifStmt;
         }
@@ -349,12 +354,17 @@ public class SemanticChecker {
                         add(elseStmt);
                     }
                 }, BlockNode.BlockType.BRANCH);
+                blockedElseStmt.setFuncEntry(currentFunc);
+                blockedElseStmt.setSymbolTable(currentTable);
+                blockedElseStmt.setDepth(depth);
             } else {
                 blockedElseStmt = (BlockNode) elseStmt;
             }
+            //recover block type
             currentBlock = temp;
             return new IfNode(cond, blockedIfStmt, blockedElseStmt);
         }
+        //recover block type
         currentBlock = temp;
         return new IfNode(cond, blockedIfStmt);
     }
@@ -373,6 +383,9 @@ public class SemanticChecker {
                     add(whileStmt);
                 }
             }, BlockNode.BlockType.LOOP);
+            blockedWhileStmt.setFuncEntry(currentFunc);
+            blockedWhileStmt.setSymbolTable(currentTable);
+            blockedWhileStmt.setDepth(depth);
         } else {
             blockedWhileStmt = (BlockNode) whileStmt;
         }

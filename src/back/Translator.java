@@ -2,42 +2,19 @@ package back;
 
 import back.hardware.Memory;
 import back.hardware.RF;
-import back.instr.Addiu;
-import back.instr.Addu;
-import back.instr.Div;
-import back.instr.J;
-import back.instr.Jal;
-import back.instr.Jr;
-import back.instr.La;
-import back.instr.Li;
-import back.instr.Lw;
-import back.instr.Mfhi;
-import back.instr.Mflo;
-import back.instr.Move;
-import back.instr.Mult;
-import back.instr.Subu;
-import back.instr.Sw;
-import back.instr.Syscall;
+import back.instr.*;
 import front.FuncEntry;
 import front.TableEntry;
 import mid.IrModule;
-import mid.ircode.BasicBlock;
-import mid.ircode.BinaryOperator;
-import mid.ircode.Call;
-import mid.ircode.FuncDef;
-import mid.ircode.Immediate;
-import mid.ircode.Input;
-import mid.ircode.InstructionLinkNode;
-import mid.ircode.Operand;
-import mid.ircode.PointerOp;
-import mid.ircode.PrintInt;
-import mid.ircode.PrintStr;
-import mid.ircode.Return;
-import mid.ircode.UnaryOperator;
+import mid.ircode.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static mid.ircode.Branch.BrOp.BEQ;
+import static mid.ircode.Branch.BrOp.BNE;
 
 /**
  * 将LLVM ir 翻译为 MIPS
@@ -181,8 +158,50 @@ public class Translator {
                 printIntToMips((PrintInt) ptr);
             } else if (ptr instanceof PrintStr) {
                 printStrToMips((PrintStr) ptr);
+            } else if (ptr instanceof Jump) {
+                jumpToMips((Jump) ptr);
+            } else if (ptr instanceof Branch) {
+                branchToMips((Branch) ptr);
             }
             ptr = ptr.next();
+        }
+        if (basicBlock.getEndLabel() != null) {
+            mipsObject.setLabelToSet(basicBlock.getEndLabel());
+        }
+    }
+
+    public void getBackTempSpace() {
+        RegMap.clearWithoutSave(new ArrayList<>(tempRefCounter.keySet()));
+        mipsObject.addAfter(new Addiu(RF.GPR.SP, RF.GPR.SP, tempVarAddr));
+        tempRefCounter.clear();
+        tempVarAddr = 0;
+    }
+
+    public void jumpToMips(Jump jump) {
+        getBackTempSpace();
+        mipsObject.addAfter(new J(jump.getTarget()));
+    }
+
+    public void branchToMips(Branch branch) {
+        if (branch.getCond() instanceof Immediate) {
+            int value = ((Immediate) branch.getCond()).getValue();
+            if (branch.getBrOp() == BEQ && value == 0) {
+                getBackTempSpace();
+                mipsObject.addAfter(new J(branch.getLabelFalse()));
+                return;
+            } else if (branch.getBrOp() == BNE && value != 0) {
+                getBackTempSpace();
+                mipsObject.addAfter(new J(branch.getLabelTrue()));
+                return;
+            }
+            return;
+        }
+        int rs = allocReg(((TableEntry) branch.getCond()), true);
+        getBackTempSpace();
+        if (branch.getBrOp() == BEQ) {
+            mipsObject.addAfter(new Beq(rs, 0, branch.getLabelFalse()));
+        } else {
+            mipsObject.addAfter(new Bne(rs, 0, branch.getLabelTrue()));
         }
     }
 
@@ -201,7 +220,6 @@ public class Translator {
             int rd = allocReg(midCode.getDst(), false);
             switch (midCode.getOp()) {
                 case ADD:
-
                     mipsObject.addAfter(new Addu(rd, rs, rt));
                     break;
                 case SUB:
@@ -218,6 +236,24 @@ public class Translator {
                 case MOD:
                     mipsObject.addAfter(new Div(rs, rt));
                     mipsObject.addAfter(new Mfhi(rd));
+                    break;
+                case GEQ:
+                    mipsObject.addAfter(new Sge(rd, rs, rt));
+                    break;
+                case GRE:
+                    mipsObject.addAfter(new Sgt(rd, rs, rt));
+                    break;
+                case EQL:
+                    mipsObject.addAfter(new Seq(rd, rs, rt));
+                    break;
+                case NEQ:
+                    mipsObject.addAfter(new Sne(rd, rs, rt));
+                    break;
+                case LEQ:
+                    mipsObject.addAfter(new Sle(rd, rs, rt));
+                    break;
+                case LSS:
+                    mipsObject.addAfter(new Slt(rd, rs, rt));
                     break;
             }
         } else if (midCode.getSrc1() instanceof Immediate
@@ -248,6 +284,29 @@ public class Translator {
                     mipsObject.addAfter(new Div(RF.GPR.V1, rt));
                     mipsObject.addAfter(new Mfhi(rd));
                     break;
+                case GRE:
+                    mipsObject.addAfter(new Slti(rd, rt, imm));
+                    break;
+                case GEQ:
+                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                    mipsObject.addAfter(new Sge(rd, RF.GPR.V1, rt));
+                    break;
+                case EQL:
+                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                    mipsObject.addAfter(new Seq(rd, RF.GPR.V1, rt));
+                    break;
+                case NEQ:
+                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                    mipsObject.addAfter(new Sne(rd, RF.GPR.V1, rt));
+                    break;
+                case LSS:
+                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                    mipsObject.addAfter(new Slt(rd, RF.GPR.V1, rt));
+                    break;
+                case LEQ:
+                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                    mipsObject.addAfter(new Sle(rd, RF.GPR.V1, rt));
+                    break;
             }
         } else if (midCode.getSrc1() instanceof TableEntry
                 && midCode.getSrc2() instanceof Immediate) {
@@ -276,6 +335,30 @@ public class Translator {
                     mipsObject.addAfter(new Div(rs, RF.GPR.V1));
                     mipsObject.addAfter(new Mfhi(rd));
                     break;
+                case GEQ:
+                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                    mipsObject.addAfter(new Sge(rd, rs, RF.GPR.V1));
+                    break;
+                case GRE:
+                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                    mipsObject.addAfter(new Sgt(rd, rs, RF.GPR.V1));
+                    break;
+                case EQL:
+                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                    mipsObject.addAfter(new Seq(rd, rs, RF.GPR.V1));
+                    break;
+                case NEQ:
+                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                    mipsObject.addAfter(new Sne(rd, rs, RF.GPR.V1));
+                    break;
+                case LEQ:
+                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                    mipsObject.addAfter(new Sle(rd, rs, RF.GPR.V1));
+                    break;
+                case LSS:
+                    mipsObject.addAfter(new Slti(rd, rs, imm));
+                    break;
+
             }
         }
 
@@ -294,6 +377,7 @@ public class Translator {
                     mipsObject.addAfter(new Subu(rd, RF.GPR.ZERO, rs));
                     break;
                 case NOT:
+                    mipsObject.addAfter(new Seq(rd, rs, RF.GPR.ZERO));
                     break;
             }
         } else {
@@ -306,6 +390,7 @@ public class Translator {
                     mipsObject.addAfter(new Li(rd, imm * -1));
                     break;
                 case NOT:
+                    mipsObject.addAfter(new Li(rd, imm == 0 ? 1 : 0));
                     break;
             }
         }
@@ -409,8 +494,7 @@ public class Translator {
             }
         }
         // 回收栈上临时变量
-        mipsObject.addAfter(new Addiu(RF.GPR.SP, RF.GPR.SP, tempVarAddr));
-        tempVarAddr = 0;
+        getBackTempSpace();
 
         mipsObject.addAfter(new J(currentFunc.name() + "_EXIT"));
     }

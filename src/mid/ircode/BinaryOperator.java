@@ -23,7 +23,7 @@ public class BinaryOperator extends InstructionLinkNode {
             put(BinaryExpNode.BinaryOp.GRE, Op.GRE);
             put(BinaryExpNode.BinaryOp.LEQ, Op.LEQ);
             put(BinaryExpNode.BinaryOp.LSS, Op.LSS);
-            put(BinaryExpNode.BinaryOp.NEQ, Op.EQL);
+            put(BinaryExpNode.BinaryOp.NEQ, Op.NEQ);
         }
     };
 
@@ -34,6 +34,12 @@ public class BinaryOperator extends InstructionLinkNode {
             put(Op.MULT, "mul");
             put(Op.DIV, "sdiv");
             put(Op.MOD, "srem");
+            put(Op.EQL, "eq");
+            put(Op.NEQ, "ne");
+            put(Op.GRE, "sgt");
+            put(Op.GEQ, "sge");
+            put(Op.LEQ, "sle");
+            put(Op.LSS, "slt");
         }
     };
 
@@ -74,6 +80,27 @@ public class BinaryOperator extends InstructionLinkNode {
     }
 
     public String toIr() {
+        switch (op) {
+            case ADD:
+            case SUB:
+            case MULT:
+            case DIV:
+            case MOD:
+                return "\t" + dst.toNameIr() + " = " + OP_TO_IR.get(op) + " "
+                        + TableEntry.TO_IR.get(dst.valueType) + " " +
+                        src1.toNameIr() + ", " +
+                        src2.toNameIr();
+            case NEQ:
+            case LSS:
+            case LEQ:
+            case GRE:
+            case GEQ:
+            case EQL:
+                return "\t" + dst.toNameIr() + " = icmp " + OP_TO_IR.get(op) + " "
+                        + TableEntry.TO_IR.get(dst.valueType) + " " +
+                        src1.toNameIr() + ", " +
+                        src2.toNameIr();
+        }
         return "\t" + dst.toNameIr() + " = " + OP_TO_IR.get(op) + " "
                 + TableEntry.TO_IR.get(dst.valueType) + " " +
                 src1.toNameIr() + ", " +
