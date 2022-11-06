@@ -100,24 +100,28 @@ public class BinaryExpNode extends ExprNode {
                             % ((NumberNode) simplifiedRight).number());
                 case EQL:
                     return new NumberNode(((NumberNode) simplifiedLeft).number()
-                            == ((NumberNode)simplifiedRight).number() ? 1 : 0);
+                            == ((NumberNode) simplifiedRight).number() ? 1 : 0);
                 case GEQ:
                     return new NumberNode(((NumberNode) simplifiedLeft).number()
-                            >= ((NumberNode)simplifiedRight).number() ? 1 : 0);
+                            >= ((NumberNode) simplifiedRight).number() ? 1 : 0);
                 case GRE:
                     return new NumberNode(((NumberNode) simplifiedLeft).number()
-                            > ((NumberNode)simplifiedRight).number() ? 1 : 0);
+                            > ((NumberNode) simplifiedRight).number() ? 1 : 0);
                 case LEQ:
                     return new NumberNode(((NumberNode) simplifiedLeft).number()
-                            <= ((NumberNode)simplifiedRight).number() ? 1 : 0);
+                            <= ((NumberNode) simplifiedRight).number() ? 1 : 0);
                 case LSS:
                     return new NumberNode(((NumberNode) simplifiedLeft).number()
-                            < ((NumberNode)simplifiedRight).number() ? 1 : 0);
+                            < ((NumberNode) simplifiedRight).number() ? 1 : 0);
                 case NEQ:
                     return new NumberNode(((NumberNode) simplifiedLeft).number()
-                            != ((NumberNode)simplifiedRight).number() ? 1 : 0);
+                            != ((NumberNode) simplifiedRight).number() ? 1 : 0);
                 case OR:
+                    return new NumberNode(((NumberNode) simplifiedLeft).number() != 0 ||
+                            ((NumberNode) simplifiedRight).number() != 0 ? 1 : 0);
                 case AND:
+                    return new NumberNode(((NumberNode) simplifiedLeft).number() != 0 &&
+                            ((NumberNode) simplifiedRight).number() != 0 ? 1 : 0);
                 default:
                     return new BinaryExpNode(simplifiedLeft, op, simplifiedRight);
             }

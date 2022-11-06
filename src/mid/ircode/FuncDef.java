@@ -18,6 +18,9 @@ public class FuncDef extends InstructionLinkNode {
 
     public FuncDef(FuncEntry funcEntry) {
         this.funcEntry = funcEntry;
+        for (TableEntry tableEntry : funcEntry.args()) {
+            tableEntry.setDefined(true);
+        }
     }
 
     public void addBlock(BasicBlock basicBlock) {

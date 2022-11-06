@@ -165,6 +165,9 @@ public class Translator {
             }
             ptr = ptr.next();
         }
+        if (tempVarAddr != 0) {
+            getBackTempSpace();
+        }
         if (basicBlock.getEndLabel() != null) {
             mipsObject.setLabelToSet(basicBlock.getEndLabel());
         }
@@ -486,7 +489,7 @@ public class Translator {
         // set return value
         if (midCode.getReturnValue() != null) {
             if (midCode.getReturnValue() instanceof Immediate) {
-                mipsObject.addAfter(new Li(RF.GPR.V1,
+                mipsObject.addAfter(new Li(RF.GPR.V0,
                         ((Immediate) midCode.getReturnValue()).getValue()));
             } else {
                 int src = allocReg((TableEntry) midCode.getReturnValue(), true);

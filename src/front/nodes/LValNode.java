@@ -54,7 +54,7 @@ public class LValNode extends ExprNode {
         for (ExprNode exprNode : index) {
             simplifiedIndex.add(exprNode.simplify(symbolTable));
         }
-        TableEntry tableEntry = symbolTable.getSymbol(this.ident);
+        TableEntry tableEntry = symbolTable.getSymbolDefined(this.ident);
         if (tableEntry != null && tableEntry.isConst && this.dimension == 0) {
             for (ExprNode exprNode : simplifiedIndex) {
                 if (!(exprNode instanceof NumberNode)) {

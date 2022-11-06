@@ -1,10 +1,10 @@
 package front.nodes;
 
 public class WhileNode implements StmtNode {
-    private final ExprNode cond;
-    private final StmtNode whileStmt;
+    private ExprNode cond;
+    private final BlockNode whileStmt;
 
-    public WhileNode(ExprNode cond, StmtNode whileStmt) {
+    public WhileNode(ExprNode cond, BlockNode whileStmt) {
         this.cond = cond;
         this.whileStmt = whileStmt;
     }
@@ -13,8 +13,12 @@ public class WhileNode implements StmtNode {
         return cond;
     }
 
-    public StmtNode whileStmt() {
+    public BlockNode whileStmt() {
         return whileStmt;
+    }
+
+    public void setCond(ExprNode cond) {
+        this.cond = cond;
     }
 
     @Override

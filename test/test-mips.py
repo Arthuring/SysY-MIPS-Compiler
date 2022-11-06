@@ -46,14 +46,19 @@ if __name__ == '__main__':
 
 
                 os.system("copy " + os.path.join(dataDirRoot, fileName) + " testfile.txt")
+                os.system("copy " + os.path.join(dataDirRoot, fileName) + " ..\\testfile.txt")
                 os.system("java -jar SysY-MIPS-Compiler.jar")
                 os.system("copy mips.txt mips.asm")
+                os.system("copy mips.txt ..\\mips.txt")
+                os.system("copy llvm_ir.txt ..\\llvm_ir.txt")
                 #stdFile = ".\\Syntax-analysis"+ dataDirRoot[16:]
                 print("Compiled finished, running testfile")
                 inputFile = fileName.replace("testfile", "input")
                 std_out_file = fileName.replace("testfile", "output")
                 os.system("copy " + os.path.join(dataDirRoot, inputFile) + " input.txt")
+                os.system("copy " + os.path.join(dataDirRoot, inputFile) + " ..\\input.txt")
                 os.system("copy " + os.path.join(dataDirRoot, std_out_file) + " output.txt")
+                os.system("copy " + os.path.join(dataDirRoot, std_out_file) + " ..\\output.txt")
 
                 os.system("java -jar mars.jar nc mc Default mips.asm < input.txt > my_output.txt")
 

@@ -15,7 +15,7 @@ public class UnaryOperator extends InstructionLinkNode {
         {
             put(Op.PLUS, "add");
             put(Op.MINU, "sub");
-            put(Op.NOT, "eq");
+            put(Op.NOT, "ne");
 
         }
     };

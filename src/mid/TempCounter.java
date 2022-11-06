@@ -7,12 +7,14 @@ public class TempCounter {
 
     public static TableEntry getTemp(TableEntry.RefType refType, TableEntry.ValueType valueType) {
         counter += 1;
-        return new TableEntry(refType, valueType, "%-t" + counter, null, false, 0,false, true);
+        return new TableEntry(refType, valueType, "%-t" + counter, null, false, 0, false, true);
     }
 
     public static TableEntry getTemp() {
         counter += 1;
-        return new TableEntry(TableEntry.RefType.ITEM, TableEntry.ValueType.INT,
+        TableEntry tableEntry = new TableEntry(TableEntry.RefType.ITEM, TableEntry.ValueType.INT,
                 "-t" + counter, 0, false, 0, false, true);
+        tableEntry.setDefined(true);
+        return tableEntry;
     }
 }

@@ -3,6 +3,7 @@ package front.nodes;
 import front.FuncEntry;
 import front.SymbolTable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class BlockNode implements StmtNode {
@@ -23,6 +24,24 @@ public class BlockNode implements StmtNode {
     public BlockNode(List<BlockItemNode> blockItemNodes, BlockType type) {
         this.blockItemNodes = blockItemNodes;
         this.type = type;
+    }
+
+    public BlockNode(BlockItemNode blockItemNode, BlockType type, int depth, SymbolTable symbolTable) {
+        this.blockItemNodes = new ArrayList<BlockItemNode>() {
+            {
+                add(blockItemNode);
+            }
+        };
+        this.type = type;
+        this.depth = depth;
+        this.symbolTable = symbolTable;
+    }
+
+    public BlockNode(List<BlockItemNode> blockItemNode, BlockType type, int depth, SymbolTable symbolTable) {
+        this.blockItemNodes = blockItemNode;
+        this.type = type;
+        this.depth = depth;
+        this.symbolTable = symbolTable;
     }
 
     public List<BlockItemNode> blockItemNodes() {
@@ -59,4 +78,5 @@ public class BlockNode implements StmtNode {
     public int getDepth() {
         return depth;
     }
+
 }

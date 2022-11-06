@@ -51,6 +51,24 @@ public class SymbolTable {
         }
     }
 
+    public TableEntry getSymbolDefined(String name) {
+        if (varSymbols.containsKey(name) && (varSymbols.get(name).defined || isGlobalTable())) {
+            return varSymbols.get(name);
+        } else if (this.parentTable != null) {
+            return parentTable.getSymbol(name);
+        } else {
+            System.out.println("not find " + name);
+            return null;
+        }
+    }
+
+    public void setDefined(String name) {
+        if (varSymbols.containsKey(name)) {
+            varSymbols.get(name).setDefined(true);
+        }
+    }
+
+
     public String filedName() {
         return filedName;
     }

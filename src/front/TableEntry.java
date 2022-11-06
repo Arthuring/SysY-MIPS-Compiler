@@ -57,6 +57,7 @@ public class TableEntry implements Operand {
     public final boolean isGlobal;
     public int address = 0;
     public boolean isTemp = false;
+    public boolean defined = false;
 
     public TableEntry(RefType symbolType, ValueType valueType, String name, Integer initValue, boolean isConst,
                       int level, boolean isGlobal) {
@@ -189,4 +190,9 @@ public class TableEntry implements Operand {
     public boolean isTemp() {
         return isTemp;
     }
+
+    public void setDefined(boolean defined) {
+        this.defined = defined;
+    }
+
 }

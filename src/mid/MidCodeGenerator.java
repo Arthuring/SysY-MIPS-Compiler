@@ -64,6 +64,7 @@ public class MidCodeGenerator {
         List<DefNode> defNodeList = declNode.defNodeList();
         if (!declNode.isConst()) {
             for (DefNode defNode : defNodeList) {
+                currentTable.setDefined(defNode.ident());
                 TableEntry tableEntry = currentTable.getSymbol(defNode.ident());
                 tableEntry.simplify(currentTable);
                 if (currentTable.isGlobalTable()) {
@@ -80,7 +81,8 @@ public class MidCodeGenerator {
             }
         } else {
             for (DefNode defNode : defNodeList) {
-                TableEntry tableEntry = currentTable.getSymbol(defNode.ident());
+                currentTable.setDefined(defNode.ident());
+                TableEntry tableEntry = currentTable.getSymbolDefined(defNode.ident());
                 tableEntry.simplify(currentTable);
             }
         }
@@ -169,7 +171,22 @@ public class MidCodeGenerator {
         addNewBasicBlock(LabelCounter.getLabel());
     }
 
+    public static WhileNode solveLoopAndOr(WhileNode whileNode) {
+        BlockNode whileStmt = new BlockNode(whileNode.whileStmt().blockItemNodes(), BlockNode.BlockType.BRANCH, depth, whileNode.whileStmt().getSymbolTable());
+        final IfNode condIf = solveBranchAndOr(new IfNode(whileNode.cond(), whileStmt,
+                new BlockNode(new BreakStmtNode(0), BlockNode.BlockType.BRANCH, depth, new SymbolTable(currentTable, "else" + depth))));
+        final BlockNode blockedCondIf = new BlockNode(condIf, BlockNode.BlockType.LOOP, depth, new SymbolTable(currentTable, "if" + depth));
+        return new WhileNode(new NumberNode(1), blockedCondIf);
+    }
+
     public static void whileNodeToIr(WhileNode whileNode) {
+        whileNode.setCond(whileNode.cond().simplify(currentTable));
+        if (whileNode.cond() instanceof BinaryExpNode &&
+                (((BinaryExpNode) whileNode.cond()).op() == BinaryExpNode.BinaryOp.OR ||
+                ((BinaryExpNode) whileNode.cond()).op() == BinaryExpNode.BinaryOp.AND)) {
+            whileNode = solveLoopAndOr(whileNode);
+        }
+        //TODO:化简循环逻辑
         String whileCondLabel = LabelCounter.getLabel("while_cond");
         String whileBodyLabel = LabelCounter.getLabel("while_body");
         String tempLoopCond = currentLoopCond;
@@ -194,9 +211,37 @@ public class MidCodeGenerator {
         addNewBasicBlock(LabelCounter.getLabel());
     }
 
+    public static IfNode solveBranchAndOr(IfNode ifNode) {
+        ExprNode cond = ifNode.cond();
+        BlockNode ifStmt = ifNode.ifStmt();
+        BlockNode elseStmt = ifNode.elseStmt();
+        if (!(cond instanceof BinaryExpNode) ||
+                ((BinaryExpNode) cond).op() != BinaryExpNode.BinaryOp.AND
+                        && ((BinaryExpNode) cond).op() != BinaryExpNode.BinaryOp.OR) {
+            return new IfNode(cond, ifStmt, elseStmt);
+        } else {
+            ExprNode left = ((BinaryExpNode) cond).left();
+            ExprNode right = ((BinaryExpNode) cond).right();
+            if (((BinaryExpNode) cond).op() == BinaryExpNode.BinaryOp.OR) {
+                final IfNode inside = new IfNode(right, ifStmt, elseStmt);
+                final IfNode simpledInside = solveBranchAndOr(inside);
+                final BlockNode blockInside = new BlockNode(simpledInside, BlockNode.BlockType.BRANCH, depth, new SymbolTable(currentTable, "else" + depth));
+                final IfNode outside = new IfNode(left, ifStmt, blockInside);
+                return solveBranchAndOr(outside);
+            } else {
+                final IfNode inside = new IfNode(right, ifStmt, elseStmt);
+                final IfNode simpledInside = solveBranchAndOr(inside);
+                final BlockNode blockInside = new BlockNode(simpledInside, BlockNode.BlockType.BRANCH, depth, new SymbolTable(currentTable, "if" + depth));
+                final IfNode outside = new IfNode(left, blockInside, elseStmt);
+                return solveBranchAndOr(outside);
+            }
+        }
+    }
 
     public static void ifNodeToIr(IfNode ifNode) {
-        ExprNode simplifiedCond = ifNode.cond().simplify(currentTable);
+        ifNode.setCond(ifNode.cond().simplify(currentTable));
+        ifNode = solveBranchAndOr(ifNode);
+        ExprNode simplifiedCond = ifNode.cond();
         Operand dst = expNodeToIr(simplifiedCond);
         if (ifNode.elseStmt() != null) {
             String ifLabel = LabelCounter.getLabel("if");
@@ -226,7 +271,7 @@ public class MidCodeGenerator {
 
     public static void assignNodeToIr(AssignNode assignNode) {
         LValNode left = assignNode.lVal();
-        TableEntry dst = currentTable.getSymbol(left.ident());
+        TableEntry dst = currentTable.getSymbolDefined(left.ident());
         ExprNode right = assignNode.exprNode().simplify(currentTable);
         if (right instanceof GetintNode) {
             Operand value = getIntNodeToIr((GetintNode) right);
@@ -300,7 +345,7 @@ public class MidCodeGenerator {
 
     public static Operand LValNodeToIr(LValNode lValNode) {
         TableEntry dst = TempCounter.getTemp();
-        TableEntry src = currentTable.getSymbol(lValNode.ident());
+        TableEntry src = currentTable.getSymbolDefined(lValNode.ident());
         currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.LOAD, dst, src));
         return dst;
     }
@@ -323,13 +368,16 @@ public class MidCodeGenerator {
                 .collect(Collectors.toList());
         int putIntCnt = 0;
         List<ExprNode> args = printfNode.args();
+        List<Operand> results = new ArrayList<>();
+        for (ExprNode arg : args) {
+            results.add(expNodeToIr(arg.simplify(currentTable)));
+        }
         for (String string : formatStrings) {
             if (!string.equals("%d")) {
                 String label = StringCounter.findString(string);
                 currentBasicBlock.addAfter(new PrintStr(label, string));
             } else {
-                ExprNode simplifiedExpr = args.get(putIntCnt).simplify(currentTable);
-                Operand result = expNodeToIr(simplifiedExpr);
+                Operand result = results.get(putIntCnt);
                 currentBasicBlock.addAfter(new PrintInt(result));
                 putIntCnt += 1;
             }
