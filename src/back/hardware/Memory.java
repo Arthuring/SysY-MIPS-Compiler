@@ -29,15 +29,23 @@ public class Memory {
         }
         int offset = roundUp(globalOffset, 4);
         globalOffset = roundUp(globalOffset, 4);
+        tableEntry.setAddress(offset);
+        globalVarMap.put(tableEntry, RF.GP_INIT + offset);
+
         if (tableEntry.refType == TableEntry.RefType.ITEM) {
             int value = tableEntry.initValue == null ? 0 : ((NumberNode) tableEntry.initValue).number();
-            memoryMap.put(RF.GP_INIT + offset, value);
+            memoryMap.put(RF.GP_INIT + globalOffset, value);
             globalOffset += tableEntry.valueType.sizeof();
         } else {
             //TODO : 数组
+            for (int i = 0; i < tableEntry.sizeof(); i += 4) {
+                int value = tableEntry.initValueList == null ? 0 :
+                        ((NumberNode) tableEntry.initValueList.get(i / 4)).number();
+                memoryMap.put(RF.GP_INIT + globalOffset, value);
+                globalOffset += 4;
+            }
         }
-        tableEntry.setAddress(offset);
-        globalVarMap.put(tableEntry, RF.GP_INIT + offset);
+
         return offset;
     }
 

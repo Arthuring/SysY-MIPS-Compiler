@@ -60,8 +60,25 @@ public class MidCodeGenerator {
         return IR_MODULE;
     }
 
+    public static void loadArrayInit(TableEntry tableEntry) {
+        List<ExprNode> initValue = tableEntry.initValueList;
+        List<Operand> index = new ArrayList<>();
+        for (int i = 0; i < tableEntry.getDimension().size(); i++) {
+            index.add(new Immediate(0));
+        }
+        for (int i = 0; i < initValue.size(); i++) {
+            index.add(new Immediate(i));
+            TableEntry temp = TempCounter.getTempPointer(tableEntry, index);
+            Operand value = expNodeToIr(initValue.get(i));
+            currentBasicBlock.addAfter(new ElementPtr(temp, tableEntry, index));
+            currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.STORE, temp, value));
+            index.remove(index.size() - 1);
+        }
+    }
+
     public static void declNodeToIr(DeclNode declNode) {
         List<DefNode> defNodeList = declNode.defNodeList();
+        //TODO: 数组定义
         if (!declNode.isConst()) {
             for (DefNode defNode : defNodeList) {
                 currentTable.setDefined(defNode.ident());
@@ -76,6 +93,8 @@ public class MidCodeGenerator {
                             tableEntry.initValue != null)) {
                         Operand init = expNodeToIr(tableEntry.initValue);
                         currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.STORE, tableEntry, init));
+                    } else if (tableEntry.refType == TableEntry.RefType.ARRAY) {
+                        loadArrayInit(tableEntry);
                     }
                 }
             }
@@ -84,6 +103,16 @@ public class MidCodeGenerator {
                 currentTable.setDefined(defNode.ident());
                 TableEntry tableEntry = currentTable.getSymbolDefined(defNode.ident());
                 tableEntry.simplify(currentTable);
+                if (tableEntry.refType == TableEntry.RefType.ARRAY) { //常量数组
+                    if (currentTable.isGlobalTable()) {
+                        IR_MODULE.getGlobalVarDefs().add(tableEntry);
+
+                    } else {
+                        VarDef varDef = new VarDef(tableEntry);
+                        currentBasicBlock.addAfter(varDef);
+                        loadArrayInit(tableEntry);
+                    }
+                }
             }
         }
     }
@@ -183,7 +212,7 @@ public class MidCodeGenerator {
         whileNode.setCond(whileNode.cond().simplify(currentTable));
         if (whileNode.cond() instanceof BinaryExpNode &&
                 (((BinaryExpNode) whileNode.cond()).op() == BinaryExpNode.BinaryOp.OR ||
-                ((BinaryExpNode) whileNode.cond()).op() == BinaryExpNode.BinaryOp.AND)) {
+                        ((BinaryExpNode) whileNode.cond()).op() == BinaryExpNode.BinaryOp.AND)) {
             whileNode = solveLoopAndOr(whileNode);
         }
         //TODO:化简循环逻辑
@@ -273,6 +302,9 @@ public class MidCodeGenerator {
         LValNode left = assignNode.lVal();
         TableEntry dst = currentTable.getSymbolDefined(left.ident());
         ExprNode right = assignNode.exprNode().simplify(currentTable);
+        if (dst.refType == TableEntry.RefType.ARRAY) {
+            dst = getElementPointer(dst, assignNode.lVal());
+        }
         if (right instanceof GetintNode) {
             Operand value = getIntNodeToIr((GetintNode) right);
             currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.STORE, dst, value));
@@ -343,10 +375,37 @@ public class MidCodeGenerator {
         return dst;
     }
 
+    public static TableEntry getElementPointer(TableEntry base, LValNode lValNode) {
+        List<Operand> index = new ArrayList<>();
+        if (base.refType == TableEntry.RefType.ARRAY) {
+            index.add(new Immediate(0));
+        }
+        for (ExprNode exprNode : lValNode.index()) {
+            ExprNode simplifiedExpr = exprNode.simplify(currentTable);
+            index.add(expNodeToIr(simplifiedExpr));
+        }
+        TableEntry temp = TempCounter.getTempPointer(base, index);
+        currentBasicBlock.addAfter(new ElementPtr(temp, base, index));
+        return temp;
+    }
+
     public static Operand LValNodeToIr(LValNode lValNode) {
-        TableEntry dst = TempCounter.getTemp();
+        // TODO: 数组调用
+        TableEntry dst = null;
         TableEntry src = currentTable.getSymbolDefined(lValNode.ident());
-        currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.LOAD, dst, src));
+        if (src.refType == TableEntry.RefType.ITEM) {
+            dst = TempCounter.getTemp();
+            currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.LOAD, dst, src));
+        } else if (src.refType == TableEntry.RefType.ARRAY ||
+                src.refType == TableEntry.RefType.POINTER) {
+            TableEntry temp = getElementPointer(src, lValNode);
+            if (lValNode.dimension == 0) {
+                dst = TempCounter.getTemp();
+                currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.LOAD, dst, temp));
+            } else {
+                dst = temp;
+            }
+        }
         return dst;
     }
 

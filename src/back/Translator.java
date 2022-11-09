@@ -5,6 +5,7 @@ import back.hardware.RF;
 import back.instr.*;
 import front.FuncEntry;
 import front.TableEntry;
+import front.nodes.NumberNode;
 import mid.IrModule;
 import mid.ircode.*;
 
@@ -162,6 +163,8 @@ public class Translator {
                 jumpToMips((Jump) ptr);
             } else if (ptr instanceof Branch) {
                 branchToMips((Branch) ptr);
+            } else if (ptr instanceof ElementPtr) {
+                elementPtrToMips((ElementPtr) ptr);
             }
             ptr = ptr.next();
         }
@@ -170,6 +173,41 @@ public class Translator {
         }
         if (basicBlock.getEndLabel() != null) {
             mipsObject.setLabelToSet(basicBlock.getEndLabel());
+        }
+    }
+
+    public void elementPtrToMips(ElementPtr elementPtr) {
+        int dst = allocReg(elementPtr.getDst(), false);
+        TableEntry baseVar = elementPtr.getBaseVar();
+        if (baseVar.refType == TableEntry.RefType.ARRAY) {
+            int base = getBase(baseVar);
+            int offset = getOffset(baseVar);
+            mipsObject.addAfter(new Addiu(dst, base, offset));
+        } else if (baseVar.refType == TableEntry.RefType.POINTER) {
+            int base = getBase(baseVar);
+            int offset = getOffset(baseVar);
+            mipsObject.addAfter(new Lw(dst, offset, base));
+        }
+        int col = baseVar.getDimension().size() > 1 ?
+                ((NumberNode) baseVar.getDimension().get(1)).number() : 0;
+        int cnt = 0;
+        for (int i = elementPtr.getIndex().size() - 1; i >= 0; i--) {
+            if (elementPtr.getIndex().get(i) instanceof Immediate) {
+                mipsObject.addAfter(new Addiu(dst, dst, 4 * ((cnt == 0) ? 1 : col) *
+                        ((Immediate) elementPtr.getIndex().get(i)).getValue()));
+            } else {
+                int src = allocReg((TableEntry) elementPtr.getIndex().get(i), true);
+                if (cnt == 1) {
+                    mipsObject.addAfter(new Li(RF.GPR.V1, col * 4));
+                    mipsObject.addAfter(new Mult(RF.GPR.V1, src));
+                    mipsObject.addAfter(new Mflo(RF.GPR.V1));
+                    mipsObject.addAfter(new Addu(dst, dst, RF.GPR.V1));
+                } else {
+                    mipsObject.addAfter(new Sll(RF.GPR.V1, src, 2));
+                    mipsObject.addAfter(new Addu(dst, dst, RF.GPR.V1));
+                }
+            }
+            cnt += 1;
         }
     }
 
@@ -430,7 +468,12 @@ public class Translator {
                 mipsObject.addAfter(new Sw(RF.GPR.V1, offset, base));
             } else {
                 int rs = allocReg((TableEntry) midCode.getSrc(), true);
-                mipsObject.addAfter(new Sw(rs, offset, base));
+                if (dst.refType == TableEntry.RefType.ITEM) {
+                    mipsObject.addAfter(new Sw(rs, offset, base));
+                } else {
+                    int target = allocReg(dst, true);
+                    mipsObject.addAfter(new Sw(rs, 0, target));
+                }
             }
 
         } else if (midCode.getOp() == PointerOp.Op.LOAD) {
@@ -438,10 +481,16 @@ public class Translator {
             if (midCode.getSrc() instanceof Immediate) {
                 mipsObject.addAfter(new Li(dst, ((Immediate) midCode.getSrc()).getValue()));
             } else if (midCode.getSrc() instanceof TableEntry) {
-                TableEntry src = (TableEntry) midCode.getSrc();
-                int base = getBase(src);
-                int offset = getOffset(src);
-                mipsObject.addAfter(new Lw(dst, offset, base));
+                if (((TableEntry) midCode.getSrc()).refType == TableEntry.RefType.ITEM) {
+                    TableEntry src = (TableEntry) midCode.getSrc();
+                    int base = getBase(src);
+                    int offset = getOffset(src);
+                    mipsObject.addAfter(new Lw(dst, offset, base));
+                } else {
+                    TableEntry src = (TableEntry) midCode.getSrc();
+                    int reg = allocReg(src, true);
+                    mipsObject.addAfter(new Lw(dst, 0, reg));
+                }
             }
         }
     }

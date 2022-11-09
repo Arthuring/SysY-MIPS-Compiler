@@ -21,11 +21,11 @@ public class PointerOp extends InstructionLinkNode {
     public String toIr() {
         if (this.op == Op.LOAD) {
             return "\t" + dst.toNameIr() + " = load " +
-                    TableEntry.TO_IR.get(dst.valueType) + ", " +
-                    "i32* " + src.toNameIr();
+                    dst.typeToIr() + ", " +
+                    src.typeToIr() + "* " + src.toNameIr();
         } else {
-            return "\t" + "store " + TableEntry.TO_IR.get(dst.valueType) + " " + src.toNameIr() + ", "
-                    + "i32* " + dst.toNameIr();
+            return "\t" + "store " + dst.typeToIr() + " " + src.toNameIr() + ", "
+                    + dst.typeToIr() + "* " + dst.toNameIr();
         }
     }
 

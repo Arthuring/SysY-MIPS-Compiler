@@ -6,11 +6,7 @@ import front.nodes.FuncParamNode;
 import front.nodes.NumberNode;
 import mid.ircode.Operand;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 
 public class TableEntry implements Operand {
     public enum ValueType {
@@ -59,6 +55,10 @@ public class TableEntry implements Operand {
     public boolean isTemp = false;
     public boolean defined = false;
 
+    public List<ExprNode> getDimension() {
+        return dimension;
+    }
+
     public TableEntry(RefType symbolType, ValueType valueType, String name, Integer initValue, boolean isConst,
                       int level, boolean isGlobal) {
         this.refType = symbolType;
@@ -70,6 +70,7 @@ public class TableEntry implements Operand {
         this.isGlobal = isGlobal;
     }
 
+    //for tempItem
     public TableEntry(RefType symbolType, ValueType valueType, String name, Integer initValue, boolean isConst,
                       int level, boolean isGlobal, boolean isTemp) {
         this.refType = symbolType;
@@ -80,6 +81,19 @@ public class TableEntry implements Operand {
         this.level = level;
         this.isGlobal = isGlobal;
         this.isTemp = isTemp;
+    }
+
+    //for tempPointer
+    public TableEntry(RefType symbolType, ValueType valueType, String name,
+                      List<ExprNode> dim) {
+        this.refType = symbolType;
+        this.valueType = valueType;
+        this.name = name;
+        this.isConst = false;
+        this.level = 0;
+        this.isGlobal = false;
+        this.dimension = dim;
+        this.isTemp = true;
     }
 
     public TableEntry(DefNode defNode, boolean isConst, int level, CompileUnit.Type type, boolean isGlobal) {
@@ -108,7 +122,7 @@ public class TableEntry implements Operand {
         if (funcParamNode.dimension().size() == 0) {
             this.refType = RefType.ITEM;
         } else {
-            this.refType = RefType.ARRAY;
+            this.refType = RefType.POINTER;
         }
         this.valueType = TO_VALUE_TYPE.get(funcParamNode.type());
         this.isGlobal = false;
@@ -133,20 +147,39 @@ public class TableEntry implements Operand {
     }
 
     public String toGlobalIr() {
-        if (initValue != null) {
-            return "@" + name + " = dso_local global "
-                    + TO_IR.get(this.valueType) + " "
-                    + ((NumberNode) initValue).number();
+        if (this.refType == RefType.ITEM) {
+            if (initValue != null) {
+                return "@" + name + " = dso_local global "
+                        + TO_IR.get(this.valueType) + " "
+                        + ((NumberNode) initValue).number();
+            } else {
+                return "@" + name + " = dso_local global "
+                        + TO_IR.get(this.valueType) + " "
+                        + 0;
+            }
         } else {
-            return "@" + name + " = dso_local global "
-                    + TO_IR.get(this.valueType) + " "
-                    + 0;
+            if (initValue != null) {
+                StringBuilder sb = new StringBuilder("@" + name + " = dso_local global "
+                        + ((isConst) ? " constant " : "")
+                        + typeToIr() + " ");
+
+                StringJoiner sji = new StringJoiner(", ");
+                for (ExprNode exprNode : initValueList) {
+                    sji.add("i32 " + ((NumberNode) exprNode).number());
+                }
+                sb.append("[").append(sji).append("]");
+
+                return sb.toString();
+            } else {
+                return "@" + name + " = dso_local global "
+                        + ((isConst) ? " constant " : "")
+                        + typeToIr() + " zeroinitializer";
+            }
         }
     }
 
     public String toParamIr() {
-        return TO_IR.get(valueType)
-                + ((refType == RefType.ARRAY || refType == RefType.POINTER) ? "* " : " ")
+        return typeToIr() + " "
                 + toNameIr();
     }
 
@@ -155,6 +188,27 @@ public class TableEntry implements Operand {
             return "%" + name + "_" + level;
         } else {
             return "@" + name;
+        }
+    }
+
+    public String typeToIr() {
+        if (this.refType == RefType.ITEM) {
+            return TO_IR.get(valueType);
+        } else if (this.refType == RefType.ARRAY) {
+            StringBuilder sb = new StringBuilder(TO_IR.get(valueType));
+            for (int i = dimension.size() - 1; i >= 0; i--) {
+                sb.append("]");
+                sb.insert(0, "[" + ((NumberNode) dimension.get(i)).number() + " x ");
+            }
+            return sb.toString();
+        } else {
+            StringBuilder sb = new StringBuilder(TO_IR.get(valueType));
+            for (int i = dimension.size() - 1; i > 0; i--) {
+                sb.append("]");
+                sb.insert(0, "[" + ((NumberNode) dimension.get(i)).number() + " x ");
+            }
+            sb.append("*");
+            return sb.toString();
         }
     }
 
@@ -178,6 +232,8 @@ public class TableEntry implements Operand {
     public int sizeof() {
         if (refType == RefType.ITEM) {
             return valueType.sizeof();
+        } else if (refType == RefType.POINTER) {
+            return 4;
         } else {
             int temp = valueType.sizeof();
             for (ExprNode exprNode : dimension) {

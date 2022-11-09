@@ -15,6 +15,6 @@ public class VarDef extends InstructionLinkNode {
 
     @Override
     public String toIr() {
-        return "\t" + tableEntry.toNameIr() + " = alloca " + TableEntry.TO_IR.get(tableEntry.valueType);
+        return "\t" + tableEntry.toNameIr() + " = alloca " + tableEntry.typeToIr();
     }
 }

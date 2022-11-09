@@ -20,4 +20,9 @@ public class Immediate implements Operand {
     public String toParamIr() {
         return "i32 " + value;
     }
+
+    @Override
+    public String typeToIr() {
+        return "i32";
+    }
 }
