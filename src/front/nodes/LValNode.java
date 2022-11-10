@@ -74,8 +74,8 @@ public class LValNode extends ExprNode {
                 }
             } else if (tableEntry.refType == TableEntry.RefType.ARRAY) {
                 int position = 0;
-                for (int i = 0; i < index.size(); i++) {
-                    int temp = ((NumberNode) index.get(i)).number();
+                for (int i = 0; i < simplifiedIndex.size(); i++) {
+                    int temp = ((NumberNode) simplifiedIndex.get(i)).number();
                     for (int j = i + 1; j < tableEntry.dimension.size();
                          j++) {
                         temp = temp * ((NumberNode) tableEntry.dimension.get(j)).number();

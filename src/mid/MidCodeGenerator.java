@@ -4,27 +4,7 @@ import front.FuncEntry;
 import front.SemanticChecker;
 import front.SymbolTable;
 import front.TableEntry;
-import front.nodes.AssignNode;
-import front.nodes.BinaryExpNode;
-import front.nodes.BlockItemNode;
-import front.nodes.BlockNode;
-import front.nodes.BreakStmtNode;
-import front.nodes.CompileUnitNode;
-import front.nodes.ContinueStmtNode;
-import front.nodes.DeclNode;
-import front.nodes.DefNode;
-import front.nodes.ExprNode;
-import front.nodes.FuncCallNode;
-import front.nodes.FuncDefNode;
-import front.nodes.GetintNode;
-import front.nodes.IfNode;
-import front.nodes.LValNode;
-import front.nodes.NumberNode;
-import front.nodes.PrintfNode;
-import front.nodes.ReturnNode;
-import front.nodes.StmtNode;
-import front.nodes.UnaryExpNode;
-import front.nodes.WhileNode;
+import front.nodes.*;
 import mid.ircode.*;
 
 import java.util.ArrayList;
@@ -121,6 +101,11 @@ public class MidCodeGenerator {
         FuncDef temp = currentFuncDef;
 
         currentFuncDef = new FuncDef(FUNC_TABLE.get(funcDefNode.name()));
+        List<TableEntry> args = currentFuncDef.getFuncEntry().args();
+        for (TableEntry tableEntry : args) {
+            tableEntry.simplify(currentTable);
+        }
+
         blockNodeToIr(funcDefNode.blockNode());
         IR_MODULE.getFuncDefs().add(currentFuncDef);
 
@@ -302,14 +287,17 @@ public class MidCodeGenerator {
         LValNode left = assignNode.lVal();
         TableEntry dst = currentTable.getSymbolDefined(left.ident());
         ExprNode right = assignNode.exprNode().simplify(currentTable);
-        if (dst.refType == TableEntry.RefType.ARRAY) {
-            dst = getElementPointer(dst, assignNode.lVal());
-        }
         if (right instanceof GetintNode) {
             Operand value = getIntNodeToIr((GetintNode) right);
+            if (dst.refType == TableEntry.RefType.ARRAY || dst.refType == TableEntry.RefType.POINTER) {
+                dst = getElementPointer(dst, assignNode.lVal());
+            }
             currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.STORE, dst, value));
         } else {
             Operand value = expNodeToIr(right);
+            if (dst.refType == TableEntry.RefType.ARRAY || dst.refType == TableEntry.RefType.POINTER) {
+                dst = getElementPointer(dst, assignNode.lVal());
+            }
             currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.STORE, dst, value));
         }
     }

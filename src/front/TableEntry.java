@@ -144,6 +144,17 @@ public class TableEntry implements Operand {
             newDimension.add(exprNode.simplify(symbolTable));
         }
         dimension = newDimension;
+        int space = 1;
+        for (ExprNode exprNode : dimension) {
+            space = space * ((NumberNode) exprNode).number();
+        }
+
+        if (refType == RefType.ARRAY && (initValueList == null || initValueList.size() != space)) {
+            initValueList = new ArrayList<>();
+            for (int i = 0; i < space; i++) {
+                initValueList.add(new NumberNode(0));
+            }
+        }
     }
 
     public String toGlobalIr() {

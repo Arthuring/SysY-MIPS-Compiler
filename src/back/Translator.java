@@ -5,6 +5,7 @@ import back.hardware.RF;
 import back.instr.*;
 import front.FuncEntry;
 import front.TableEntry;
+import front.nodes.ExprNode;
 import front.nodes.NumberNode;
 import mid.IrModule;
 import mid.ircode.*;
@@ -105,6 +106,16 @@ public class Translator {
             } else if (ptr instanceof PointerOp) {
                 if (((PointerOp) ptr).getOp().equals(PointerOp.Op.STORE)) {
                     setTempVarAddr(((PointerOp) ptr).getSrc());
+                    if (((PointerOp) ptr).getDst().refType == TableEntry.RefType.POINTER) {
+                        setTempVarAddr(((PointerOp) ptr).getDst());
+                    }
+                } else {
+                    if (((PointerOp) ptr).getSrc() instanceof TableEntry) {
+                        TableEntry tableEntry = (TableEntry) ((PointerOp) ptr).getSrc();
+                        if (tableEntry.refType == TableEntry.RefType.POINTER) {
+                            setTempVarAddr(tableEntry);
+                        }
+                    }
                 }
             } else if (ptr instanceof Call) {
                 ((Call) ptr).getArgs().forEach(this::setTempVarAddr);
@@ -116,6 +127,12 @@ public class Translator {
                 setTempVarAddr(((Input) ptr).getDst());
             } else if (ptr instanceof PrintInt) {
                 setTempVarAddr(((PrintInt) ptr).getValue());
+            } else if (ptr instanceof ElementPtr) {
+                for (Operand tableEntry : ((ElementPtr) ptr).getIndex()) {
+                    if (tableEntry instanceof TableEntry) {
+                        setTempVarAddr(tableEntry);
+                    }
+                }
             }
         }
     }
@@ -188,28 +205,28 @@ public class Translator {
             int offset = getOffset(baseVar);
             mipsObject.addAfter(new Lw(dst, offset, base));
         }
-        int col = baseVar.getDimension().size() > 1 ?
-                ((NumberNode) baseVar.getDimension().get(1)).number() : 0;
-        int cnt = 0;
-        for (int i = elementPtr.getIndex().size() - 1; i >= 0; i--) {
-            if (elementPtr.getIndex().get(i) instanceof Immediate) {
-                mipsObject.addAfter(new Addiu(dst, dst, 4 * ((cnt == 0) ? 1 : col) *
-                        ((Immediate) elementPtr.getIndex().get(i)).getValue()));
 
-            } else {
-                int src = allocReg((TableEntry) elementPtr.getIndex().get(i), true);
-                if (cnt == 1) {
-                    mipsObject.addAfter(new Li(RF.GPR.V1, col * 4));
+        List<ExprNode> dim = new ArrayList<>((baseVar.refType == TableEntry.RefType.ARRAY ? baseVar.getDimension() :
+                baseVar.getDimension().subList(1, baseVar.getDimension().size())));
+        dim.add(new NumberNode(1));
+        List<Operand> indexes = new ArrayList<>(elementPtr.getIndex());
+        for (int i = 0; i < indexes.size(); i++) {
+            Operand index = indexes.get(i);
+            if (index instanceof Immediate && ((Immediate) index).getValue() != 0) {
+                mipsObject.addAfter(new Addiu(dst, dst, 4 * ((Immediate) index).getValue()
+                        * ((NumberNode) dim.get(i)).number()));
+            } else if (index instanceof TableEntry) {
+                int src = allocReg((TableEntry) index, true);
+                if (((NumberNode) dim.get(i)).number() != 1) {
+                    mipsObject.addAfter(new Li(RF.GPR.V1, ((NumberNode) dim.get(i)).number() * 4));
                     mipsObject.addAfter(new Mult(RF.GPR.V1, src));
                     mipsObject.addAfter(new Mflo(RF.GPR.V1));
                     mipsObject.addAfter(new Addu(dst, dst, RF.GPR.V1));
-
                 } else {
                     mipsObject.addAfter(new Sll(RF.GPR.V1, src, 2));
                     mipsObject.addAfter(new Addu(dst, dst, RF.GPR.V1));
                 }
             }
-            cnt += 1;
         }
     }
 
@@ -399,7 +416,12 @@ public class Translator {
                     mipsObject.addAfter(new Sle(rd, rs, RF.GPR.V1));
                     break;
                 case LSS:
-                    mipsObject.addAfter(new Slti(rd, rs, imm));
+                    if (imm > (1 << 15) - 1) {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                        mipsObject.addAfter(new Slt(rd, rs, RF.GPR.V1));
+                    } else {
+                        mipsObject.addAfter(new Slti(rd, rs, imm));
+                    }
                     break;
 
             }
