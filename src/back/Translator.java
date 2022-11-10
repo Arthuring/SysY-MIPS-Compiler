@@ -195,6 +195,7 @@ public class Translator {
             if (elementPtr.getIndex().get(i) instanceof Immediate) {
                 mipsObject.addAfter(new Addiu(dst, dst, 4 * ((cnt == 0) ? 1 : col) *
                         ((Immediate) elementPtr.getIndex().get(i)).getValue()));
+
             } else {
                 int src = allocReg((TableEntry) elementPtr.getIndex().get(i), true);
                 if (cnt == 1) {
@@ -202,6 +203,7 @@ public class Translator {
                     mipsObject.addAfter(new Mult(RF.GPR.V1, src));
                     mipsObject.addAfter(new Mflo(RF.GPR.V1));
                     mipsObject.addAfter(new Addu(dst, dst, RF.GPR.V1));
+
                 } else {
                     mipsObject.addAfter(new Sll(RF.GPR.V1, src, 2));
                     mipsObject.addAfter(new Addu(dst, dst, RF.GPR.V1));
@@ -465,7 +467,12 @@ public class Translator {
             int offset = getOffset(dst);
             if (midCode.getSrc() instanceof Immediate) {
                 mipsObject.addAfter(new Li(RF.GPR.V1, ((Immediate) midCode.getSrc()).getValue()));
-                mipsObject.addAfter(new Sw(RF.GPR.V1, offset, base));
+                if (dst.refType == TableEntry.RefType.ITEM) {
+                    mipsObject.addAfter(new Sw(RF.GPR.V1, offset, base));
+                } else {
+                    int dstReg = allocReg(dst, true);
+                    mipsObject.addAfter(new Sw(RF.GPR.V1, 0, dstReg));
+                }
             } else {
                 int rs = allocReg((TableEntry) midCode.getSrc(), true);
                 if (dst.refType == TableEntry.RefType.ITEM) {
