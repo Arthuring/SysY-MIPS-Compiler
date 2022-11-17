@@ -5,7 +5,10 @@ import back.hardware.RF;
 import back.instr.MipsInstr;
 import mid.StringCounter;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.StringJoiner;
 
 public class MipsObject {
     private final MipsInstr entry = new MipsInstr();
