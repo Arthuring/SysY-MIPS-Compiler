@@ -13,7 +13,7 @@ def GetProgressBar(count=0, totalCount=1, name=""):
     return bar
 
 
-testFileDir = ".\\full2021"
+testFileDir = ".\\full2022"
 
 jarDir = "..\\out\\artifacts\\SysY_MIPS_Compiler_jar\\SysY-MIPS-Compiler.jar"
 
@@ -51,6 +51,8 @@ if __name__ == '__main__':
                 os.system("copy mips.txt mips.asm")
                 os.system("copy mips.txt ..\\mips.txt")
                 os.system("copy llvm_ir.txt ..\\llvm_ir.txt")
+                if(os.path.exists("llvm_ir_optimize.txt")):
+                    os.system("copy llvm_ir_optimize.txt ..\\llvm_ir_optimize.txt")
                 #stdFile = ".\\Syntax-analysis"+ dataDirRoot[16:]
                 print("Compiled finished, running testfile")
                 inputFile = fileName.replace("testfile", "input")
