@@ -2,9 +2,7 @@ package mid.ircode;
 
 import front.TableEntry;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.StringJoiner;
+import java.util.*;
 
 public class ElementPtr extends InstructionLinkNode {
     private final TableEntry dst;
@@ -14,6 +12,7 @@ public class ElementPtr extends InstructionLinkNode {
     private final List<Operand> index = new ArrayList<>();
 
     public ElementPtr(TableEntry dst, TableEntry baseVar, List<Operand> index) {
+        super();
         this.dst = dst;
         this.baseVar = baseVar;
         this.refType = baseVar.refType;
@@ -46,5 +45,21 @@ public class ElementPtr extends InstructionLinkNode {
 
     public List<Operand> getIndex() {
         return index;
+    }
+
+    @Override
+    public TableEntry getDefineVar() {
+        return dst;
+    }
+
+    @Override
+    public Set<TableEntry> getUseVar() {
+        Set<TableEntry> useSet = new HashSet<>();
+        for (Operand operand : index) {
+            if (operand instanceof TableEntry) {
+                useSet.add((TableEntry) operand);
+            }
+        }
+        return useSet;
     }
 }

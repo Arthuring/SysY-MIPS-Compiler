@@ -4,42 +4,34 @@ import back.hardware.RF;
 
 import java.util.StringJoiner;
 
-public class Srl extends MipsInstr {
+public class Mul extends MipsInstr {
     private final int rd;
+    private final int rt;
     private final int rs;
-    private final int imm;
 
-    public Srl(int rd, int rs, int imm) {
+    public Mul(int rd, int rs, int rt) {
         this.rd = rd;
         this.rs = rs;
-        this.imm = imm;
-    }
-
-    public Srl(String label, int rd, int rs, int imm) {
-        super.setLabel(label);
-        this.rd = rd;
-        this.rs = rs;
-        this.imm = imm;
-    }
-
-    public int getImm() {
-        return imm;
-    }
-
-    public int getRd() {
-        return rd;
+        this.rt = rt;
     }
 
     public int getRs() {
         return rs;
     }
 
-    @Override
+    public int getRd() {
+        return rd;
+    }
+
+    public int getRt() {
+        return rt;
+    }
+
     public String toMips() {
         StringJoiner sj = new StringJoiner("\n");
         sj.add(super.toMips());
-        String sb = "srl " + "$" + RF.ID_TO_NAME.get(rd) + ", " +
-                "$" + RF.ID_TO_NAME.get(rs) + ", " + imm;
+        String sb = "mul " + "$" + RF.ID_TO_NAME.get(rd) + ", " +
+                "$" + RF.ID_TO_NAME.get(rs) + ", " + "$" + RF.ID_TO_NAME.get(rt);
         StringBuilder stringBuilder = new StringBuilder(sb);
         if (!super.getComment().equals("")) {
             stringBuilder.append("\t# ").append(super.getComment());

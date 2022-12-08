@@ -2,10 +2,14 @@ package mid.ircode;
 
 import front.TableEntry;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public class Return extends InstructionLinkNode {
     private final Operand returnValue;
 
     public Return(Operand operand) {
+        super();
         this.returnValue = operand;
     }
 
@@ -22,5 +26,19 @@ public class Return extends InstructionLinkNode {
         } else {
             return "\t ret void";
         }
+    }
+
+    @Override
+    public Set<TableEntry> getUseVar() {
+        Set<TableEntry> useSet = new HashSet<>();
+        if (returnValue != null && returnValue instanceof TableEntry) {
+            useSet.add((TableEntry) returnValue);
+        }
+        return useSet;
+    }
+
+    @Override
+    public TableEntry getDefineVar() {
+        return super.getDefineVar();
     }
 }

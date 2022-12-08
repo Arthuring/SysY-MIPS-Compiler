@@ -1,9 +1,10 @@
 package mid.ircode;
 
 public class Jump extends InstructionLinkNode {
-    private final String target;
+    private String target;
 
     public Jump(String target) {
+        super();
         this.target = target;
     }
 
@@ -14,4 +15,9 @@ public class Jump extends InstructionLinkNode {
     public String toIr() {
         return "\tbr label %" + target;
     }
+
+    public void setTarget(String target) {
+        this.target = target;
+    }
+
 }

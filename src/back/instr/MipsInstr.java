@@ -18,12 +18,12 @@ public class MipsInstr extends InstructionLinkNode {
                 sj.add(labelItem + ":");
             }
         }
-        for (String description : irDescriptions) {
-            String[] strings = description.split("\n");
-            for (String str : strings) {
-                sj.add("# " + str);
-            }
-        }
+//        for (String description : irDescriptions) {
+//            String[] strings = description.split("\n");
+//            for (String str : strings) {
+//                sj.add("# " + str);
+//            }
+//        }
         return sj.toString();
     }
 

@@ -10,6 +10,7 @@ import front.TokenPackage;
 import front.nodes.CompileUnitNode;
 import mid.IrModule;
 import mid.MidCodeGenerator;
+import mid.optimize.IrOptimizer;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -22,6 +23,8 @@ import java.util.List;
 import java.util.Set;
 
 public class Compiler {
+    public static boolean OPTIMISER = true;
+
     public static String input(String inputFile) throws Exception {
         InputStream inputStream = new FileInputStream(inputFile);
         byte[] bytes = new byte[inputStream.available()];
@@ -113,6 +116,35 @@ public class Compiler {
         output("llvm_ir.txt", irModule.toIr(), excs);
         output("mips.txt", mipsObject.toMips(), excs);
 
+    }
+
+    public static void optimizeTest(String inputFile, String outPutFile) throws Exception {
+        OPTIMISER = true;
+        String sourceCode = input(inputFile);
+        List<Token> tokens = Lexer.tokenize(sourceCode);
+        TokenPackage tokenPackage = new TokenPackage(tokens);
+        CompileUnit compileUnit = Parser.parseCompUnit(tokenPackage);
+        Set<CompileExc> errs = new HashSet<>(Parser.COMPILE_EXCS);
+        CompileUnitNode compileUnitNode = SemanticChecker.buildCompileUnitNode(compileUnit);
+        errs.addAll(SemanticChecker.getError());
+        List<CompileExc> excs = new ArrayList<>(errs);
+        IrModule irModule;
+        MipsObject mipsObject;
+        if (excs.size() == 0) {
+            MidCodeGenerator.setOptimizer(OPTIMISER);
+            Translator.setOptimizer(OPTIMISER);
+            irModule = MidCodeGenerator.compileUnitToIr(compileUnitNode);
+            output("llvm_ir.txt", irModule.toIr(), excs);
+            irModule = IrOptimizer.optimize(irModule);
+
+            mipsObject = (new Translator(irModule)).toMips();
+        } else {
+            System.out.println("error happened");
+            irModule = new IrModule();
+            mipsObject = new MipsObject();
+        }
+        output("llvm_ir_optimize.txt", irModule.toIr(), excs);
+        output("mips.txt", mipsObject.toMips(), excs);
     }
 
     public static void returnTest(String inputFile, String outputFile) throws Exception {

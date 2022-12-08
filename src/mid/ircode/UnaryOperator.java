@@ -4,7 +4,9 @@ import front.TableEntry;
 import front.nodes.UnaryExpNode;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class UnaryOperator extends InstructionLinkNode {
     public enum Op {
@@ -28,16 +30,24 @@ public class UnaryOperator extends InstructionLinkNode {
         }
     };
 
-
     private final Op op;
     private final TableEntry dst;
     private final Operand src;
 
     public UnaryOperator(UnaryExpNode.UnaryOp op, TableEntry dst, Operand src) {
+        super();
         this.op = OP_2_OP.get(op);
         this.dst = dst;
         this.src = src;
     }
+
+    public UnaryOperator(Op op, TableEntry dst, Operand src) {
+        super();
+        this.op = op;
+        this.dst = dst;
+        this.src = src;
+    }
+
 
     public TableEntry getDst() {
         return dst;
@@ -72,4 +82,17 @@ public class UnaryOperator extends InstructionLinkNode {
                 src.toNameIr();
     }
 
+    @Override
+    public Set<TableEntry> getUseVar() {
+        Set<TableEntry> useSet = new HashSet<>();
+        if (src instanceof TableEntry) {
+            useSet.add((TableEntry) src);
+        }
+        return useSet;
+    }
+
+    @Override
+    public TableEntry getDefineVar() {
+        return dst;
+    }
 }

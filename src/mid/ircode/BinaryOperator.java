@@ -4,7 +4,9 @@ import front.TableEntry;
 import front.nodes.BinaryExpNode;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 public class BinaryOperator extends InstructionLinkNode {
     public enum Op {
@@ -49,6 +51,7 @@ public class BinaryOperator extends InstructionLinkNode {
     private final Operand src2;
 
     public BinaryOperator(Op op, TableEntry dst, Operand src1, Operand src2) {
+        super();
         this.op = op;
         this.dst = dst;
         this.src1 = src1;
@@ -56,6 +59,7 @@ public class BinaryOperator extends InstructionLinkNode {
     }
 
     public BinaryOperator(BinaryExpNode.BinaryOp binaryOp, TableEntry dst, Operand src1, Operand src2) {
+        super();
         this.op = OP_2_OP.get(binaryOp);
         this.dst = dst;
         this.src1 = src1;
@@ -106,5 +110,22 @@ public class BinaryOperator extends InstructionLinkNode {
                 src1.toNameIr() + ", " +
                 src2.toNameIr();
 
+    }
+
+    @Override
+    public TableEntry getDefineVar() {
+        return this.dst;
+    }
+
+    @Override
+    public Set<TableEntry> getUseVar() {
+        Set<TableEntry> useSet = new HashSet<>();
+        if (src1 instanceof TableEntry) {
+            useSet.add((TableEntry) src1);
+        }
+        if (src2 instanceof TableEntry) {
+            useSet.add((TableEntry) src2);
+        }
+        return useSet;
     }
 }

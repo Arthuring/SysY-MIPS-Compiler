@@ -13,7 +13,7 @@ def GetProgressBar(count=0, totalCount=1, name=""):
     return bar
 
 
-testFileDir = ".\\full2022"
+testFileDir = ".\\full2021"
 
 jarDir = "..\\out\\artifacts\\SysY_MIPS_Compiler_jar\\SysY-MIPS-Compiler.jar"
 

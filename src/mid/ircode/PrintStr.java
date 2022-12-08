@@ -1,5 +1,8 @@
 package mid.ircode;
 
+import front.TableEntry;
+
+import java.util.Set;
 import java.util.StringJoiner;
 
 public class PrintStr extends InstructionLinkNode {
@@ -8,6 +11,7 @@ public class PrintStr extends InstructionLinkNode {
     private final boolean singleChar = true;
 
     public PrintStr(String label, String content) {
+        super();
         this.label = label;
         this.content = content.replace("\\" + "n", "\n");
     }
@@ -33,5 +37,15 @@ public class PrintStr extends InstructionLinkNode {
             //TODO
             return null;
         }
+    }
+
+    @Override
+    public Set<TableEntry> getUseVar() {
+        return super.getUseVar();
+    }
+
+    @Override
+    public TableEntry getDefineVar() {
+        return super.getDefineVar();
     }
 }

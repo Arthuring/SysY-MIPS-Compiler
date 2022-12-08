@@ -14,19 +14,26 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class MidCodeGenerator {
+    private static boolean optimizer = false;
     private static SymbolTable currentTable = SymbolTable.globalTable();
     private static final Map<String, FuncEntry> FUNC_TABLE = SemanticChecker.getFuncTable();
     private static FuncDef currentFuncDef = null;
     private static BasicBlock currentBasicBlock = null;
     private static int depth = 1;
-    private static final IrModule IR_MODULE = new IrModule();
+    private static IrModule IR_MODULE = new IrModule();
     private static String currentBranchLabel = null;
     private static String currentLoopLabel = null;
     private static String currentLoopCond = null;
     private static String currentLoopBody = null;
+    private static String currentAfterLoopLabel = null;
     private static String endTag = "_end";
 
+    public static void setOptimizer(boolean optimizer) {
+        MidCodeGenerator.optimizer = optimizer;
+    }
+
     public static IrModule compileUnitToIr(CompileUnitNode compileUnitNode) {
+        IR_MODULE = new IrModule();
         List<DeclNode> declNodes = compileUnitNode.declNodes();
         List<FuncDefNode> funcDefNodes = compileUnitNode.funcDefNodes();
         FuncDefNode mainFuncDef = compileUnitNode.mainFuncDef();
@@ -46,13 +53,31 @@ public class MidCodeGenerator {
         for (int i = 0; i < tableEntry.getDimension().size(); i++) {
             index.add(new Immediate(0));
         }
-        for (int i = 0; i < initValue.size(); i++) {
-            index.add(new Immediate(i));
-            TableEntry temp = TempCounter.getTempPointer(tableEntry, index);
-            Operand value = expNodeToIr(initValue.get(i));
-            currentBasicBlock.addAfter(new ElementPtr(temp, tableEntry, index));
-            currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.STORE, temp, value));
-            index.remove(index.size() - 1);
+        if (optimizer) {
+            TableEntry temp = null;
+            for (int i = 0; i < initValue.size(); i++) {
+                index.add(new Immediate(i));
+                if (i == 0) {
+                    temp = TempCounter.getTempPointer(tableEntry, index);
+                }
+                Operand value = expNodeToIr(initValue.get(i));
+                if (i == 0) { //TODO: 只有第一个需要element
+                    currentBasicBlock.addAfter(new ElementPtr(temp, tableEntry, index));
+                } else {
+                    currentBasicBlock.addAfter(new BinaryOperator(BinaryOperator.Op.ADD, temp, temp, new Immediate(4)));
+                }
+                currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.STORE, temp, value));
+                index.remove(index.size() - 1);
+            }
+        } else {
+            for (int i = 0; i < initValue.size(); i++) {
+                index.add(new Immediate(i));
+                TableEntry temp = TempCounter.getTempPointer(tableEntry, index);
+                Operand value = expNodeToIr(initValue.get(i));
+                currentBasicBlock.addAfter(new ElementPtr(temp, tableEntry, index));//TODO: 只有第一个需要element
+                currentBasicBlock.addAfter(new PointerOp(PointerOp.Op.STORE, temp, value));
+                index.remove(index.size() - 1);
+            }
         }
     }
 
@@ -176,7 +201,7 @@ public class MidCodeGenerator {
     }
 
     public static void breakStmtNodeToIr(BreakStmtNode breakStmtNode) {
-        currentBasicBlock.addAfter(new Jump(currentLoopBody + endTag));
+        currentBasicBlock.addAfter(new Jump(currentAfterLoopLabel));
         addNewBasicBlock(LabelCounter.getLabel());
     }
 
@@ -200,29 +225,38 @@ public class MidCodeGenerator {
                         ((BinaryExpNode) whileNode.cond()).op() == BinaryExpNode.BinaryOp.AND)) {
             whileNode = solveLoopAndOr(whileNode);
         }
-        //TODO:化简循环逻辑
+        String afterLoopLabel = LabelCounter.getLabel();
         String whileCondLabel = LabelCounter.getLabel("while_cond");
         String whileBodyLabel = LabelCounter.getLabel("while_body");
         String tempLoopCond = currentLoopCond;
         String tempLoopBody = currentLoopBody;
+        String tempAfterLoop = currentAfterLoopLabel;
         currentLoopCond = whileCondLabel;
         currentLoopBody = whileBodyLabel;
+        currentAfterLoopLabel = afterLoopLabel;
         //branch
         addNewBasicBlock(whileCondLabel);
         ExprNode simplifiedCond = whileNode.cond().simplify(currentTable);
         Operand dst = expNodeToIr(simplifiedCond);
         currentBasicBlock.addAfter(new Branch(dst, whileBodyLabel,
-                whileBodyLabel + endTag, Branch.BrOp.BEQ));
+                afterLoopLabel, Branch.BrOp.BEQ));
         //whileStmt
         currentLoopLabel = whileBodyLabel;
         blockNodeToIr((BlockNode) whileNode.whileStmt());
         //whileStmtEnd
-        currentBasicBlock.addAfter(new Jump(whileCondLabel));
-        currentBasicBlock.setEndLabel(whileBodyLabel + endTag);
+        if (optimizer) {
+            dst = expNodeToIr(simplifiedCond);
+            currentBasicBlock.addAfter(new Branch(dst, whileBodyLabel, afterLoopLabel, Branch.BrOp.BNE));
+        } else {
+            currentBasicBlock.addAfter(new Jump(whileCondLabel));
+        }
+
+        //currentBasicBlock.setEndLabel(whileBodyLabel + endTag);
 
         currentLoopCond = tempLoopCond;
         currentLoopBody = tempLoopBody;
-        addNewBasicBlock(LabelCounter.getLabel());
+        currentAfterLoopLabel = tempAfterLoop;
+        addNewBasicBlock(afterLoopLabel);
     }
 
     public static IfNode solveBranchAndOr(IfNode ifNode) {
@@ -257,6 +291,7 @@ public class MidCodeGenerator {
         ifNode = solveBranchAndOr(ifNode);
         ExprNode simplifiedCond = ifNode.cond();
         Operand dst = expNodeToIr(simplifiedCond);
+        String afterIfLabel = LabelCounter.getLabel();
         if (ifNode.elseStmt() != null) {
             String ifLabel = LabelCounter.getLabel("if");
             String elseLabel = LabelCounter.getLabel("else");
@@ -265,22 +300,22 @@ public class MidCodeGenerator {
             // elseStmt
             currentBranchLabel = elseLabel;
             blockNodeToIr((BlockNode) ifNode.elseStmt());
-            currentBasicBlock.addAfter(new Jump(ifLabel + endTag));
-            currentBasicBlock.setEndLabel(elseLabel + endTag);
+            currentBasicBlock.addAfter(new Jump(afterIfLabel));
+            //currentBasicBlock.setEndLabel(elseLabel + endTag);
             // ifStmt
             currentBranchLabel = ifLabel;
             blockNodeToIr((BlockNode) ifNode.ifStmt());
-            currentBasicBlock.setEndLabel(ifLabel + endTag);
+            //currentBasicBlock.setEndLabel(ifLabel + endTag);
         } else {
             String ifLabel = LabelCounter.getLabel("if");
             //branch
-            currentBasicBlock.addAfter(new Branch(dst, ifLabel, ifLabel + endTag, Branch.BrOp.BEQ));
+            currentBasicBlock.addAfter(new Branch(dst, ifLabel, afterIfLabel, Branch.BrOp.BEQ));
             //ifStmt
             currentBranchLabel = ifLabel;
             blockNodeToIr((BlockNode) ifNode.ifStmt());
-            currentBasicBlock.setEndLabel(ifLabel + endTag);
+            //currentBasicBlock.setEndLabel(ifLabel + endTag);
         }
-        addNewBasicBlock(LabelCounter.getLabel());
+        addNewBasicBlock(afterIfLabel);
     }
 
     public static void assignNodeToIr(AssignNode assignNode) {

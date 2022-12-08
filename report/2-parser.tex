@@ -1,1 +1,19 @@
 \chapter{语法分析}
+语法分析的任务是遍历词法分析得到的单词有序表，根据给定的形式文法，分析并确定其语法结构。
+
+本编译器采用了语法树这种层次化的结构保存语法分析的结果，
+单词有序表经过语法分析后，将得到一个完全符合课程给出文法的具体语法树。
+为了避免过于冗余的代码以及满足语法分析的输出要求，本编译器在本阶段的语法分析中，
+得到的所有语法成分（终结符以及非终结符）均采用统一的\texttt{CompileUnit}类来表示，
+通过\texttt{CompileUnit}类中的\texttt{name}和\texttt{type}来区分不同的成分，
+用\texttt{isEnd}成员来标记是否为终结符。类的定义如下。
+\begin{minted}{java}
+public class CompileUnit {
+    private final String name;//若为非终结符，则为类型名，否则为终结符内容
+    private final Type type;//语法成分类型
+    private final List<CompileUnit> childUnits;//语法子树
+    private final boolean isEnd;//是否是终结符
+    private final Integer lineNo;//若为终结符，则需要有行号
+    ...
+}
+\end{minted}   

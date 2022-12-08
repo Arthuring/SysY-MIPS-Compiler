@@ -1,9 +1,14 @@
 package mid.ircode;
 
+import front.TableEntry;
+
+import java.util.HashSet;
+import java.util.Set;
+
 public class Branch extends InstructionLinkNode {
     private final Operand cond;
-    private final String labelTrue;
-    private final String labelFalse;
+    private String labelTrue;
+    private String labelFalse;
     private final BrOp brOp;
 
     /**
@@ -15,6 +20,7 @@ public class Branch extends InstructionLinkNode {
     }
 
     public Branch(Operand cond, String labelTrue, String labelFalse, BrOp brOp) {
+        super();
         this.cond = cond;
         this.labelFalse = labelFalse;
         this.labelTrue = labelTrue;
@@ -39,5 +45,28 @@ public class Branch extends InstructionLinkNode {
 
     public String toIr() {
         return "\tbr " + cond.toNameIr() + " label %" + labelTrue + " label %" + labelFalse;
+    }
+
+    public void replaceTarget(String old, String newTarget) {
+        if (labelTrue.equals(old)) {
+            labelTrue = newTarget;
+        }
+        if (labelFalse.equals(old)) {
+            labelFalse = newTarget;
+        }
+    }
+
+    @Override
+    public Set<TableEntry> getUseVar() {
+        Set<TableEntry> useSet = new HashSet<>();
+        if (cond instanceof TableEntry) {
+            useSet.add((TableEntry) cond);
+        }
+        return useSet;
+    }
+
+    @Override
+    public TableEntry getDefineVar() {
+        return null;
     }
 }

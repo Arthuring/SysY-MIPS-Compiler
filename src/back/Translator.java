@@ -2,32 +2,8 @@ package back;
 
 import back.hardware.Memory;
 import back.hardware.RF;
-import back.instr.Addiu;
-import back.instr.Addu;
-import back.instr.Beq;
-import back.instr.Bne;
-import back.instr.Div;
-import back.instr.J;
-import back.instr.Jal;
-import back.instr.Jr;
-import back.instr.La;
-import back.instr.Li;
-import back.instr.Lw;
-import back.instr.Mfhi;
-import back.instr.Mflo;
-import back.instr.Move;
-import back.instr.Mult;
-import back.instr.Seq;
-import back.instr.Sge;
-import back.instr.Sgt;
-import back.instr.Sle;
-import back.instr.Sll;
-import back.instr.Slt;
-import back.instr.Slti;
-import back.instr.Sne;
-import back.instr.Subu;
-import back.instr.Sw;
-import back.instr.Syscall;
+import back.instr.*;
+import back.optimize.MultDiv;
 import front.FuncEntry;
 import front.TableEntry;
 import front.nodes.ExprNode;
@@ -49,11 +25,9 @@ import mid.ircode.PrintInt;
 import mid.ircode.PrintStr;
 import mid.ircode.Return;
 import mid.ircode.UnaryOperator;
+import mid.optimize.ColorResult;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static mid.ircode.Branch.BrOp.BEQ;
 import static mid.ircode.Branch.BrOp.BNE;
@@ -66,6 +40,8 @@ public class Translator {
     private final IrModule irModule;
     private final MipsObject mipsObject = new MipsObject();
     private FuncEntry currentFunc = null;
+    private FuncDef currentFuncDef = null;
+    private BasicBlock currentBasicBlock = null;
     private static final int READ_INT_SYSCALL = 5;
     private static final int PRINT_INT_SYSCALL = 1;
     private static final int PRINT_STR_SYSCALL = 4;
@@ -73,6 +49,16 @@ public class Translator {
     private static final int READ_REG = RF.GPR.V0;
     private static final int PRINT_REG = RF.GPR.A0;
     private static final int SYSCALL_REG = RF.GPR.V0;
+    private static boolean optimizer = false;
+    private static boolean betterBranch = true;
+
+    public static void setBetterBranch(boolean betterBranch) {
+        Translator.betterBranch = betterBranch;
+    }
+
+    public static void setOptimizer(boolean optimizer) {
+        Translator.optimizer = optimizer;
+    }
 
     public Translator(IrModule irModule) {
         this.irModule = irModule;
@@ -101,14 +87,39 @@ public class Translator {
 
     public void funcToMips(FuncDef funcDef) {
         currentFunc = funcDef.getFuncEntry();
+        currentFuncDef = funcDef;
         int currentStackSize = funcDef.calculateStackSpace();
 
         //函数入口
         mipsObject.setLabelToSet(funcDef.getFuncEntry().name());
         mipsObject.addAfter(new Addiu(RF.GPR.SP, RF.GPR.SP, -1 * currentStackSize));
-
+        // 申请图着色寄存器
+        if (optimizer) {
+            RegMap.allocByColorResult(funcDef.getColorResult());
+        }
+        // 取参数
+        int argReg = 4;
+        for (TableEntry tableEntry : funcDef.getFuncEntry().args()) {
+            if (argReg < 8) {
+                if (RegMap.isAllocated(tableEntry)) {
+                    mipsObject.addAfter(new Move(allocReg(tableEntry, false), argReg));
+                } else {
+                    int base = getBase(tableEntry);
+                    int offset = getOffset(tableEntry);
+                    mipsObject.addAfter(new Sw(argReg, offset, base));
+                }
+                argReg += 1;
+            } else {
+                if (RegMap.isAllocated(tableEntry)) {
+                    int base = getBase(tableEntry);
+                    int offset = getOffset(tableEntry);
+                    mipsObject.addAfter(new Lw(allocReg(tableEntry, false), offset, base));
+                }
+            }
+        }
         mipsObject.addIrDescription("basic blocks of func");//函数基本快
         for (BasicBlock basicBlock : funcDef.getBasicBlocks()) {
+            currentBasicBlock = basicBlock;
             basicBlockToMips(basicBlock);
         }
         mipsObject.addIrDescription("exit func");//exit func
@@ -234,6 +245,7 @@ public class Translator {
     }
 
     public void elementPtrToMips(ElementPtr elementPtr) {
+        mipsObject.setComment(elementPtr.toIr());
         int dst = allocReg(elementPtr.getDst(), false);
         TableEntry baseVar = elementPtr.getBaseVar();
         if (baseVar.refType == TableEntry.RefType.ARRAY) {
@@ -258,9 +270,12 @@ public class Translator {
             } else if (index instanceof TableEntry) {
                 int src = allocReg((TableEntry) index, true);
                 if (((NumberNode) dim.get(i)).number() != 1) {
-                    mipsObject.addAfter(new Li(RF.GPR.V1, ((NumberNode) dim.get(i)).number() * 4));
-                    mipsObject.addAfter(new Mult(RF.GPR.V1, src));
-                    mipsObject.addAfter(new Mflo(RF.GPR.V1));
+                    if (optimizer) {
+                        mipsObject.addAfter(MultDiv.betterMult(RF.GPR.V1, src, ((NumberNode) dim.get(i)).number() * 4));
+                    } else {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, ((NumberNode) dim.get(i)).number() * 4));
+                        mipsObject.addAfter(new Mul(RF.GPR.V1, RF.GPR.V1, src));
+                    }
                     mipsObject.addAfter(new Addu(dst, dst, RF.GPR.V1));
                 } else {
                     mipsObject.addAfter(new Sll(RF.GPR.V1, src, 2));
@@ -271,7 +286,7 @@ public class Translator {
     }
 
     public void getBackTempSpace() {
-        RegMap.clearWithoutSave(new ArrayList<>(tempRefCounter.keySet()));
+        RegMap.clearWithoutSave(new ArrayList<>(tempRefCounter.keySet()), mipsObject);
         mipsObject.addAfter(new Addiu(RF.GPR.SP, RF.GPR.SP, tempVarAddr));
         tempRefCounter.clear();
         tempVarAddr = 0;
@@ -298,16 +313,29 @@ public class Translator {
         }
         int rs = allocReg(((TableEntry) branch.getCond()), true);
         getBackTempSpace();
+        int index = currentFuncDef.getBasicBlocks().indexOf(currentBasicBlock);
         if (branch.getBrOp() == BEQ) {
             mipsObject.addAfter(new Beq(rs, 0, branch.getLabelFalse()));
+            if (index + 1 < currentFuncDef.getBasicBlocks().size() &&
+                    !branch.getLabelTrue().equals(currentFuncDef.getBasicBlocks().get(index + 1).getLabel())) {
+                mipsObject.addAfter(new J(branch.getLabelTrue()));
+            }
         } else {
             mipsObject.addAfter(new Bne(rs, 0, branch.getLabelTrue()));
+            if (index + 1 < currentFuncDef.getBasicBlocks().size() &&
+                    !branch.getLabelFalse().equals(currentFuncDef.getBasicBlocks().get(index + 1).getLabel())) {
+                mipsObject.addAfter(new J(branch.getLabelFalse()));
+            }
         }
     }
 
     public int allocReg(TableEntry tableEntry, boolean needLoad) {
         //needLoad 表示是否需要加载值
-        return RegMap.allocReg(tableEntry, mipsObject, needLoad);
+        int reg = RegMap.allocReg(tableEntry, mipsObject, needLoad);
+        if (!needLoad) {
+            RegMap.setRegDirty(reg);
+        }
+        return reg;
     }
 
     public void binaryOperatorToMips(BinaryOperator midCode) {
@@ -326,8 +354,7 @@ public class Translator {
                     mipsObject.addAfter(new Subu(rd, rs, rt));
                     break;
                 case MULT:
-                    mipsObject.addAfter(new Mult(rs, rt));
-                    mipsObject.addAfter(new Mflo(rd));
+                    mipsObject.addAfter(new Mul(rd, rs, rt));
                     break;
                 case DIV:
                     mipsObject.addAfter(new Div(rs, rt));
@@ -344,10 +371,21 @@ public class Translator {
                     mipsObject.addAfter(new Sgt(rd, rs, rt));
                     break;
                 case EQL:
-                    mipsObject.addAfter(new Seq(rd, rs, rt));
+                    if (optimizer) {
+                        mipsObject.addAfter(new Xor(rd, rs, rt));
+                        mipsObject.addAfter(new Sltu(rd, RF.GPR.ZERO, rd));
+                        mipsObject.addAfter(new Xori(rd, rd, 1));
+                    } else {
+                        mipsObject.addAfter(new Seq(rd, rs, rt));
+                    }
                     break;
                 case NEQ:
-                    mipsObject.addAfter(new Sne(rd, rs, rt));
+                    if (optimizer) {
+                        mipsObject.addAfter(new Xor(rd, rs, rt));
+                        mipsObject.addAfter(new Sltu(rd, RF.GPR.ZERO, rd));
+                    } else {
+                        mipsObject.addAfter(new Sne(rd, rs, rt));
+                    }
                     break;
                 case LEQ:
                     mipsObject.addAfter(new Sle(rd, rs, rt));
@@ -368,11 +406,15 @@ public class Translator {
                 case SUB:
                     mipsObject.addAfter(new Li(RF.GPR.V1, imm));
                     mipsObject.addAfter(new Subu(rd, RF.GPR.V1, rt));
+
                     break;
                 case MULT:
-                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Mult(RF.GPR.V1, rt));
-                    mipsObject.addAfter(new Mflo(rd));
+                    if (optimizer) {
+                        mipsObject.addAfter(MultDiv.betterMult(rd, rt, imm));
+                    } else {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                        mipsObject.addAfter(new Mul(rd, rt, RF.GPR.V1));
+                    }
                     break;
                 case DIV:
                     mipsObject.addAfter(new Li(RF.GPR.V1, imm));
@@ -388,24 +430,45 @@ public class Translator {
                     mipsObject.addAfter(new Slti(rd, rt, imm));
                     break;
                 case GEQ:
-                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Sge(rd, RF.GPR.V1, rt));
+                    if (optimizer && betterBranch) {
+                        mipsObject.addAfter(new Addiu(rd, rt, -imm - 1));
+                        mipsObject.addAfter(new Slt(rd, rd, RF.GPR.ZERO));
+                    } else {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                        mipsObject.addAfter(new Sge(rd, RF.GPR.V1, rt));
+                    }
                     break;
                 case EQL:
-                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Seq(rd, RF.GPR.V1, rt));
+                    if (optimizer) {
+                        mipsObject.addAfter(new Addiu(rd, rt, -1 * imm));
+                        mipsObject.addAfter(new Sltu(rd, RF.GPR.ZERO, rd));
+                        mipsObject.addAfter(new Xori(rd, rd, 1));
+                    } else {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                        mipsObject.addAfter(new Seq(rd, RF.GPR.V1, rt));
+                    }
                     break;
                 case NEQ:
-                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Sne(rd, RF.GPR.V1, rt));
+                    if (optimizer) {
+                        mipsObject.addAfter(new Addiu(rd, rt, -1 * imm));
+                        mipsObject.addAfter(new Sltu(rd, RF.GPR.ZERO, rd));
+                    } else {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                        mipsObject.addAfter(new Sne(rd, RF.GPR.V1, rt));
+                    }
                     break;
                 case LSS:
                     mipsObject.addAfter(new Li(RF.GPR.V1, imm));
                     mipsObject.addAfter(new Slt(rd, RF.GPR.V1, rt));
                     break;
                 case LEQ:
-                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Sle(rd, RF.GPR.V1, rt));
+                    if (optimizer && betterBranch) {
+                        mipsObject.addAfter(new Addiu(rd, rt, imm * -1 + 1));
+                        mipsObject.addAfter(new Slt(rd, RF.GPR.ZERO, rd));
+                    } else {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                        mipsObject.addAfter(new Sle(rd, RF.GPR.V1, rt));
+                    }
                     break;
             }
         } else if (midCode.getSrc1() instanceof TableEntry
@@ -421,39 +484,71 @@ public class Translator {
                     mipsObject.addAfter(new Addiu(rd, rs, imm * -1));
                     break;
                 case MULT:
-                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Mult(rs, RF.GPR.V1));
-                    mipsObject.addAfter(new Mflo(rd));
+                    if (optimizer) {
+                        mipsObject.addAfter(MultDiv.betterMult(rd, rs, imm));
+                    } else {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                        mipsObject.addAfter(new Mul(rd, rs, RF.GPR.V1));
+                    }
                     break;
                 case DIV:
-                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Div(rs, RF.GPR.V1));
-                    mipsObject.addAfter(new Mflo(rd));
+                    if (optimizer) {
+                        mipsObject.addAfter(MultDiv.betterDiv(rd, rs, imm));
+                    } else {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                        mipsObject.addAfter(new Div(rs, RF.GPR.V1));
+                        mipsObject.addAfter(new Mflo(rd));
+                    }
                     break;
                 case MOD:
-                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Div(rs, RF.GPR.V1));
-                    mipsObject.addAfter(new Mfhi(rd));
+                    if (optimizer) {
+                        mipsObject.addAfter(MultDiv.betterMod(rd, rs, imm));
+                    } else {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                        mipsObject.addAfter(new Div(rs, RF.GPR.V1));
+                        mipsObject.addAfter(new Mfhi(rd));
+                    }
                     break;
                 case GEQ:
-                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Sge(rd, rs, RF.GPR.V1));
+                    if (optimizer && betterBranch) {
+                        mipsObject.addAfter(new Addiu(rd, rs, -imm + 1));
+                        mipsObject.addAfter(new Slt(rd, RF.GPR.ZERO, rd));
+                    } else {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                        mipsObject.addAfter(new Sge(rd, rs, RF.GPR.V1));
+                    }
                     break;
                 case GRE:
                     mipsObject.addAfter(new Li(RF.GPR.V1, imm));
                     mipsObject.addAfter(new Sgt(rd, rs, RF.GPR.V1));
                     break;
                 case EQL:
-                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Seq(rd, rs, RF.GPR.V1));
+                    if (optimizer) {
+                        mipsObject.addAfter(new Addiu(rd, rs, -1 * imm));
+                        mipsObject.addAfter(new Sltu(rd, RF.GPR.ZERO, rd));
+                        mipsObject.addAfter(new Xori(rd, rd, 1));
+                    } else {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                        mipsObject.addAfter(new Seq(rd, rs, RF.GPR.V1));
+                    }
                     break;
                 case NEQ:
-                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Sne(rd, rs, RF.GPR.V1));
+                    if (optimizer) {
+                        mipsObject.addAfter(new Addiu(rd, rs, -1 * imm));
+                        mipsObject.addAfter(new Sltu(rd, RF.GPR.ZERO, rd));
+                    } else {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                        mipsObject.addAfter(new Sne(rd, rs, RF.GPR.V1));
+                    }
                     break;
                 case LEQ:
-                    mipsObject.addAfter(new Li(RF.GPR.V1, imm));
-                    mipsObject.addAfter(new Sle(rd, rs, RF.GPR.V1));
+                    if (optimizer && betterBranch) {
+                        mipsObject.addAfter(new Addiu(rd, rs, -imm - 1));
+                        mipsObject.addAfter(new Slt(rd, rd, RF.GPR.ZERO));
+                    } else {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, imm));
+                        mipsObject.addAfter(new Sle(rd, rs, RF.GPR.V1));
+                    }
                     break;
                 case LSS:
                     if (imm > (1 << 15) - 1) {
@@ -482,7 +577,12 @@ public class Translator {
                     mipsObject.addAfter(new Subu(rd, RF.GPR.ZERO, rs));
                     break;
                 case NOT:
-                    mipsObject.addAfter(new Seq(rd, rs, RF.GPR.ZERO));
+                    if (optimizer) {
+                        mipsObject.addAfter(new Sltu(rd, RF.GPR.ZERO, rs));
+                        mipsObject.addAfter(new Xori(rd, rd, 1));
+                    } else {
+                        mipsObject.addAfter(new Seq(rd, rs, RF.GPR.ZERO));
+                    }
                     break;
             }
         } else {
@@ -528,17 +628,30 @@ public class Translator {
             int base = getBase(dst);
             int offset = getOffset(dst);
             if (midCode.getSrc() instanceof Immediate) {
-                mipsObject.addAfter(new Li(RF.GPR.V1, ((Immediate) midCode.getSrc()).getValue()));
                 if (dst.refType == TableEntry.RefType.ITEM) {
-                    mipsObject.addAfter(new Sw(RF.GPR.V1, offset, base));
+                    if (optimizer) {
+                        int dstReg = allocReg(dst, false);
+                        mipsObject.addAfter(new Li(dstReg, ((Immediate) midCode.getSrc()).getValue()));
+                    } else {
+                        mipsObject.addAfter(new Li(RF.GPR.V1, ((Immediate) midCode.getSrc()).getValue()));
+                        mipsObject.addAfter(new Sw(RF.GPR.V1, offset, base));
+                    }
                 } else {
                     int dstReg = allocReg(dst, true);
+                    mipsObject.addAfter(new Li(RF.GPR.V1, ((Immediate) midCode.getSrc()).getValue()));
                     mipsObject.addAfter(new Sw(RF.GPR.V1, 0, dstReg));
                 }
             } else {
                 int rs = allocReg((TableEntry) midCode.getSrc(), true);
                 if (dst.refType == TableEntry.RefType.ITEM) {
-                    mipsObject.addAfter(new Sw(rs, offset, base));
+                    //TODO: 图着色之后已分配的变量可以用move
+                    if (optimizer) {
+                        int dstReg = allocReg(dst, false);
+                        mipsObject.addAfter(new Move(dstReg, rs));
+                    } else {
+                        mipsObject.addAfter(new Sw(rs, offset, base));
+                    }
+
                 } else {
                     int target = allocReg(dst, true);
                     mipsObject.addAfter(new Sw(rs, 0, target));
@@ -552,9 +665,16 @@ public class Translator {
             } else if (midCode.getSrc() instanceof TableEntry) {
                 if (((TableEntry) midCode.getSrc()).refType == TableEntry.RefType.ITEM) {
                     TableEntry src = (TableEntry) midCode.getSrc();
-                    int base = getBase(src);
-                    int offset = getOffset(src);
-                    mipsObject.addAfter(new Lw(dst, offset, base));
+                    //TODO: 图着色之后已分配的变量可以用move
+                    if (optimizer) {
+                        int srcReg = allocReg(src, true);
+                        mipsObject.addAfter(new Move(dst, srcReg));
+                    } else {
+                        int base = getBase(src);
+                        int offset = getOffset(src);
+                        mipsObject.addAfter(new Lw(dst, offset, base));
+                    }
+
                 } else {
                     TableEntry src = (TableEntry) midCode.getSrc();
                     int reg = allocReg(src, true);
@@ -565,35 +685,66 @@ public class Translator {
     }
 
     public void callToMips(Call midCode) {
-        mipsObject.setComment(midCode.toIr());
-        mipsObject.addIrDescription("passing args");//传参数
-        int addr = -8;
-        for (Operand operand : midCode.getArgs()) {
-            addr -= 4;
-            if (operand instanceof Immediate) {
-                mipsObject.addAfter(new Li(RF.GPR.V1, ((Immediate) operand).getValue()));
-                mipsObject.addAfter(new Sw(RF.GPR.V1, addr, RF.GPR.SP));
-            } else {
-                int src = allocReg((TableEntry) operand, true);
-                mipsObject.addAfter(new Sw(src, addr, RF.GPR.SP));
-            }
-        }
+
         mipsObject.addIrDescription("save fp, ra"); //保存fp,ra
         mipsObject.addAfter(new Sw(RF.GPR.FP, -4, RF.GPR.SP));
         mipsObject.addAfter(new Sw(RF.GPR.RA, -8, RF.GPR.SP));
-        mipsObject.addIrDescription("save regs"); //保存寄存器中的变量
-        //TODO：不用的临时变量可以不存
-        RegMap.clear(mipsObject);
+        int offset = -12;
+        if (optimizer) {
+            mipsObject.addIrDescription("save regs"); //保存寄存器中的变量
+
+            for (Integer reg : ColorResult.getAvailableReg()) {
+                if (currentFuncDef.getColorResult().getAllocMap().get(reg).size() > 0) {
+                    mipsObject.addAfter(new Sw(reg, offset, RF.GPR.SP));
+                    offset -= 4;
+                }
+            }
+        }
+        mipsObject.setComment(midCode.toIr());
+        mipsObject.addIrDescription("passing args");//传参数
+        int argReg = 4;
+        int addr = offset;
+        for (Operand operand : midCode.getArgs()) {
+            if (argReg < 8) { //前四个参数在寄存器
+                if (operand instanceof Immediate) {
+                    mipsObject.addAfter(new Li(argReg, ((Immediate) operand).getValue()));
+                } else {
+                    int src = allocReg((TableEntry) operand, true);
+                    mipsObject.addAfter(new Move(argReg, src));
+                }
+                argReg += 1;
+            } else {
+                if (operand instanceof Immediate) {
+                    mipsObject.addAfter(new Li(RF.GPR.V1, ((Immediate) operand).getValue()));
+                    mipsObject.addAfter(new Sw(RF.GPR.V1, addr, RF.GPR.SP));
+                } else {
+                    int src = allocReg((TableEntry) operand, true);
+                    mipsObject.addAfter(new Sw(src, addr, RF.GPR.SP));
+                }
+            }
+            addr -= 4;
+        }
+        RegMap.saveTemp(midCode, mipsObject, currentBasicBlock);
         mipsObject.addIrDescription("set fp, sp for callee");//为被调用函数设置fp, sp
-        mipsObject.addAfter(new Addiu(RF.GPR.FP, RF.GPR.SP, -12));
-        mipsObject.addAfter(new Addiu(RF.GPR.SP, RF.GPR.SP, -12));
+        mipsObject.addAfter(new Addiu(RF.GPR.FP, RF.GPR.SP, offset));
+        mipsObject.addAfter(new Addiu(RF.GPR.SP, RF.GPR.SP, offset));
         //调用函数
         mipsObject.addAfter(new Jal(midCode.getFuncEntry().name()));
         mipsObject.addIrDescription("recover fp, ra for callee");//恢复ra和fp
-        mipsObject.addAfter(new Lw(RF.GPR.RA, 4, RF.GPR.SP));
-        mipsObject.addAfter(new Lw(RF.GPR.FP, 8, RF.GPR.SP));
+        mipsObject.addAfter(new Lw(RF.GPR.RA, -offset - 8, RF.GPR.SP));
+        mipsObject.addAfter(new Lw(RF.GPR.FP, -offset - 4, RF.GPR.SP));
+        //恢复寄存器
+        int offset1 = 12;
+        if (optimizer) {
+            for (Integer reg : ColorResult.getAvailableReg()) {
+                if (currentFuncDef.getColorResult().getAllocMap().get(reg).size() > 0) {
+                    mipsObject.addAfter(new Lw(reg, -offset - offset1, RF.GPR.SP));
+                    offset1 += 4;
+                }
+            }
+        }
         mipsObject.addIrDescription("recover sp");//恢复sp
-        mipsObject.addAfter(new Addiu(RF.GPR.SP, RF.GPR.SP, 12));
+        mipsObject.addAfter(new Addiu(RF.GPR.SP, RF.GPR.SP, offset1));
 
         if (midCode.getReturnDst() != null) {
             mipsObject.addIrDescription("get return value");//取返回值
@@ -629,7 +780,7 @@ public class Translator {
     }
 
     public void printIntToMips(PrintInt midCode) {
-        //mipsObject.setComment(midCode.toIr());
+        mipsObject.setComment(midCode.toIr());
         if (midCode.getValue() instanceof Immediate) {
             mipsObject.addAfter(new Li(PRINT_REG, ((Immediate) midCode.getValue()).getValue()));
             mipsObject.addAfter(new Li(SYSCALL_REG, PRINT_INT_SYSCALL));

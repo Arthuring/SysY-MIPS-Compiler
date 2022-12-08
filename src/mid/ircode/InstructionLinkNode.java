@@ -1,11 +1,23 @@
 package mid.ircode;
 
+import front.TableEntry;
+
+import java.util.HashSet;
+import java.util.Set;
+
 public class InstructionLinkNode extends User {
     private InstructionLinkNode prev = null;
     private InstructionLinkNode next = null;
+    private final int instrId;
+    private static int ID_COUNTER = 0;
 
     public InstructionLinkNode() {
+        this.instrId = ID_COUNTER;
+        ID_COUNTER += 1;
+    }
 
+    public int getId() {
+        return instrId;
     }
 
     public InstructionLinkNode next() {
@@ -58,6 +70,23 @@ public class InstructionLinkNode extends User {
             this.next.setPrev(irLinkNode);
         }
         this.next = irLinkNode;
+    }
+
+    public void append(InstructionLinkNode irLinkNode) {
+        InstructionLinkNode ptr = this;
+        while (ptr.hasNext()) {
+            ptr = ptr.next();
+        }
+        ptr.setNext(irLinkNode);
+        irLinkNode.setPrev(ptr);
+    }
+
+    public Set<TableEntry> getUseVar() {
+        return new HashSet<>();
+    }
+
+    public TableEntry getDefineVar() {
+        return null;
     }
 
     public String toIr() {

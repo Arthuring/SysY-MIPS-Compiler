@@ -4,18 +4,18 @@ import back.hardware.RF;
 
 import java.util.StringJoiner;
 
-public class Srl extends MipsInstr {
+public class Xori extends MipsInstr {
     private final int rd;
     private final int rs;
     private final int imm;
 
-    public Srl(int rd, int rs, int imm) {
+    public Xori(int rd, int rs, int imm) {
         this.rd = rd;
         this.rs = rs;
         this.imm = imm;
     }
 
-    public Srl(String label, int rd, int rs, int imm) {
+    public Xori(String label, int rd, int rs, int imm) {
         super.setLabel(label);
         this.rd = rd;
         this.rs = rs;
@@ -38,7 +38,7 @@ public class Srl extends MipsInstr {
     public String toMips() {
         StringJoiner sj = new StringJoiner("\n");
         sj.add(super.toMips());
-        String sb = "srl " + "$" + RF.ID_TO_NAME.get(rd) + ", " +
+        String sb = "xori " + "$" + RF.ID_TO_NAME.get(rd) + ", " +
                 "$" + RF.ID_TO_NAME.get(rs) + ", " + imm;
         StringBuilder stringBuilder = new StringBuilder(sb);
         if (!super.getComment().equals("")) {

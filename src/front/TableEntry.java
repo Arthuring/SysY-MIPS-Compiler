@@ -54,6 +54,7 @@ public class TableEntry implements Operand {
     public int address = 0;
     public boolean isTemp = false;
     public boolean defined = false;
+    public boolean isParameter = false;
 
     public List<ExprNode> getDimension() {
         return dimension;
@@ -126,6 +127,7 @@ public class TableEntry implements Operand {
         }
         this.valueType = TO_VALUE_TYPE.get(funcParamNode.type());
         this.isGlobal = false;
+        this.isParameter = true;
     }
 
     public void simplify(SymbolTable symbolTable) {

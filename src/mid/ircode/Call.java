@@ -3,21 +3,25 @@ package mid.ircode;
 import front.FuncEntry;
 import front.TableEntry;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.StringJoiner;
 
 public class Call extends InstructionLinkNode {
     private final FuncEntry funcEntry;
-    private final List<Operand> args;
+    private List<Operand> args;
     private final TableEntry returnDst;
 
     public Call(FuncEntry funcEntry, List<Operand> args, TableEntry returnDst) {
+        super();
         this.funcEntry = funcEntry;
         this.args = args;
         this.returnDst = returnDst;
     }
 
     public Call(FuncEntry funcEntry, List<Operand> args) {
+        super();
         this.funcEntry = funcEntry;
         this.args = args;
         this.returnDst = null;
@@ -54,5 +58,25 @@ public class Call extends InstructionLinkNode {
         sb.append(sj);
         sb.append(")");
         return sb.toString();
+    }
+
+    public void setArgs(List<Operand> args) {
+        this.args = args;
+    }
+
+    @Override
+    public TableEntry getDefineVar() {
+        return returnDst;
+    }
+
+    @Override
+    public Set<TableEntry> getUseVar() {
+        Set<TableEntry> useSet = new HashSet<>();
+        for (Operand operand : args) {
+            if (operand instanceof TableEntry) {
+                useSet.add((TableEntry) operand);
+            }
+        }
+        return useSet;
     }
 }
