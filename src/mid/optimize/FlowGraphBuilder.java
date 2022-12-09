@@ -63,7 +63,7 @@ public class FlowGraphBuilder {
             basicBlock.addNextBlock(targetLabel2);
             label2Block.get(targetLabel1).addPrevBlock(basicBlock.getLabel());
             label2Block.get(targetLabel2).addPrevBlock(basicBlock.getLabel());
-        } else {
+        } else { //TODO:return 语句
             if (nextBlock != null) {
                 basicBlock.addNextBlock(nextBlock.getLabel());
                 nextBlock.addPrevBlock(basicBlock.getLabel());

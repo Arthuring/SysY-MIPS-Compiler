@@ -11,11 +11,11 @@ import java.util.StringJoiner;
 
 public class FuncEntry {
 
-    private final String name;
-    private final List<TableEntry> args = new ArrayList<>();
-    private final Map<String, TableEntry> name2entry = new HashMap<>();
-    private final boolean isMain;
-    private final TableEntry.ValueType returnType;
+    private final String name;//函数名
+    private final List<TableEntry> args = new ArrayList<>();//参数表
+    private final Map<String, TableEntry> name2entry = new HashMap<>();//参数表
+    private final boolean isMain;//是否是主函数
+    private final TableEntry.ValueType returnType;//返回值类型
 
     public TableEntry.ValueType returnType() {
         return returnType;

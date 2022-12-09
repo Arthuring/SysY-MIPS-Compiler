@@ -1,1 +1,109 @@
-\chapter{错误处理}
+\chapter{语义分析和错误处理}
+\section{设计概述}
+
+\todo 流程图
+错误处理中的错误分为两大类，语法错误和语义错误，因此本编译器在语法分析和语义分析两个阶段分别处理这两种不同的错误，并将错误添加到全局错误表。
+
+在之前的语法分析过程中，我们已经得到具体语法树，但是由于具体语法树上的所有节点的类都是\texttt{CompileUnit}，并且具体语法树上还有类似于
+\texttt{"(", ";"}等与后续分析无关的符号，这会给后续的代码生成带来不便。同时，原文法中涉及到的表达式类型繁多，但其实均可以归为二元运算和一元运算两类。
+因此在语义分析阶段，语义分析器将读入具体语法树，并进行语义分析，输出抽象语法树，如果发现语义错误，则将错误加入全局错误表。
+
+\section{设计细节}
+\subsection{语法错误处理}
+
+在所有错误类型中，语法错误如表\ref{table:syntax}
+
+\begin{table}[H] 
+    \centering
+    \begin{tabular}{cc}
+    \toprule 
+    错误类型 & 错误类别码  \\
+    \midrule
+    非法符号 & a  \\
+    缺少分号 & i  \\
+    缺少右小括号')' & j\\
+    缺少右中括号']' & k \\
+    \bottomrule %添加表格底部粗线
+    \end{tabular}
+    \caption{语法错误表}
+    \label{table:syntax}
+\end{table}
+
+语法错误发现和处理比较容易，当语法分析器判断当前应当读入一个分号，右小括号，右中括号但没有读到时，就可以判断发生了错误，并将错误添加到全局错误表，
+之后跳过这个待读入符号继续语法分析。非法符号错误则不影响整体的具体语法树，只需要在读到\texttt{FormatString}时单独检查即可。
+\subsection{语义分析与语义错误处理}
+在所有错误类型中，语义错误如表\ref{table:syntax}
+
+\begin{table}[H] 
+    \centering
+    \begin{tabular}{cc}
+    \toprule 
+    错误类型 & 错误类别码  \\
+    \midrule
+    名字重定义 & b  \\
+    未定义的名字 & c  \\
+    函数参数个数不匹配 & d\\
+    函数参数类型不匹配 & e \\
+    无返回值的函数存在不匹配的return语句 & f\\
+    有返回值的函数缺少return语句 & g\\
+    不能改变常量的值 &h\\
+    printf中格式字符与表达式个数不匹配 & l \\
+    在非循环块中使用break和continue语句 & m\\
+    \bottomrule %添加表格底部粗线
+    \end{tabular}
+    \caption{语义错误表}
+    \label{table:syntax}
+\end{table}
+
+语义分析的总体过程是遍历具体语法树，在过程中维护符号表和全局函数表从而完成错误处理，并在过程中将具体语法树的节点转化为抽象语法树的节点。
+
+l类错误较为简单，对于m类型错误，在语义分析时需要在分析到循环类stmt的时候记录循环深度，若在循环深度为0时出现了break或continue语句，则发生m类错误。
+
+除了最后两种错误外，其他的所有错误都和符号表操作相关，实质上是对符号表进行查找并进行判断，完成符号表设计后，错误处理也就基本完成了。
+\subsection{符号表设计}
+本编译器在语义分析阶段维护两张表，分别是变量表和全局函数表。
+
+全局函数表较为简单，是一个以函数名作为键，表项作为值的哈希表。
+
+其中变量表采用树形结构，抽象语法树中的每个\texttt{block}保存其对应的变量表。
+每个子表都保存一个指向其父表的指针，查找符号表时，先查找本符号表，若没有查到，则递归的查找父符号表，直到查找到最外层的全局变量表。
+树形符号表与栈式符号表相比的优点在于，栈式符号表在每个\texttt{block}分析结束后会被弹出删除，没有保存分析结果和维护符号表之间的层次关系，
+树形符号表则可以保存这次语义分析的结果，从而在后续代码生成时继续使用。
+\todo 树形符号表图
+
+变量表的表项设计为
+\begin{minted}{java}
+    public class TableEntry implements Operand {
+        public final RefType refType; //包括ITEM-普通变量,ARRAY-数组,POINTER-指针,三种类型
+        public final ValueType valueType; //包括INT-整数,VOID-空，两种类型
+        public final String name;//变量名
+        public ExprNode initValue;//初始值
+        public List<ExprNode> initValueList;//数组初始值
+        public List<ExprNode> dimension;//数组每一维的大小
+        public final int level;//定义处的层数
+        public final boolean isConst;//是否是常量
+        public final boolean isGlobal;//是否是全局变量
+        public boolean isParameter; //是否是函数参数;
+        ...
+    }
+\end{minted}
+
+函数表的表项设计为
+\begin{minted}{java}
+    public class FuncEntry {
+        private final String name;//函数名
+        private final List<TableEntry> args = new ArrayList<>();//参数表
+        private final Map<String, TableEntry> name2entry = new HashMap<>();//参数表
+        private final boolean isMain;//是否是主函数
+        private final TableEntry.ValueType returnType;//返回值类型
+        ...
+    }
+\end{minted}
+
+\section{编码后的修改}
+
+\begin{enumerate}
+    \item 在解析完函数头之后应该立即将函数表项加入全局函数表，不然函数递归调用的时候会报未定义名字的错误。
+    \item 初次实现的时候函数参数没有加入符号表导致误报未定义名字错误。
+    \item 全局变量和函数不能重名，而局部变量和函数可以重名，这里需要特殊处理。
+\end{enumerate}

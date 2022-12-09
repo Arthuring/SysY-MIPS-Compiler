@@ -1,1 +1,109 @@
 \chapter{目标代码生成}
+\section{设计概述}
+
+此阶段将体系结构无关的中间代码翻译成MIPS体系结构的目标代码。程序的控制流，计算指令等已经在中间代码生成阶段完成，
+对于单条中间代码如何翻译成目标代码难度不大。目标代码生成的难点主要集中在寄存器分配和管理，运行时的存储管理，切换和恢复运行现场。
+
+本编译器生成目标代码的流程如图。\todo
+
+大致步骤如下：
+\begin{enumerate}
+    \item 首先将要输出的字符串填在data段，设置全局变量初值并设置全局指针\texttt{\$gp}和帧指针\texttt{\$fp}。
+    \item 随后生成函数体代码，在函数入口处需要计算并分配函数的局部变量地址，同时压栈设置栈指针\texttt{\$sp}。
+    \item 若在优化中采用了寄存器传参和图着色寄存器分配，需要取参数。
+    \item 随后对每个基本块代码生成，基本块入口处需要计算并分配临时变量空间，压栈指针，离开基本块时回收这部分空间。
+    \item 生成函数出口，将函数刚刚分配的局部变量空间回收，若是main函数，则结束程序，否则跳转到返回地址。
+\end{enumerate}
+
+\section{设计细节}
+
+\subsection{寄存器分配}
+
+采用一个单独的类\texttt{RegMap}来维护寄存器的分配。\texttt{RegMap}定义如下
+\begin{minted}{java}
+public class RegMap {
+    private static final Map<Integer, TableEntry> BUSY_REG_TO_VAR = new HashMap<>();//寄存器到变量的映射
+    private static final Map<TableEntry, Integer> VAR_TO_BUST_REG = new HashMap<>();//变量到寄存器的映射
+
+    private static final Collection<Integer> availableReg = Collections.unmodifiableList(Arrays.asList(
+            8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25
+    ));
+    private static final Set<Integer> freeRegList = new HashSet<>(availableReg);//目前空闲的寄存器
+    private static final Set<Integer> lruList = new LinkedHashSet<>();//LRU队列
+    private static final Map<Integer, Boolean> REG_DIRTY = new HashMap<>();
+    //Dirty位，寄存器中的值是否被修改过
+
+     /**
+     * 分配寄存器，若已经分配过，则返回之前分配的，并更新LRU。
+     * 若未分配，则分配一个，若需要分配同时加载初值，则needLoad置位。
+     * 副作用：会在mipsObject中新增代码
+     */
+     public static int allocReg(TableEntry tableEntry, MipsObject mipsObject, boolean needLoad) {
+     }
+     //...
+     }
+     //...
+\end{minted}
+
+若没有空闲的寄存器，采用最近最少使用的寄存器置换方法，将最近最少使用的寄存器释放，分配给待分配变量。
+若该寄存器的值的\texttt{Dirty}为\texttt{true}，则需要写回对应内存。
+
+\subsection{运行时存储管理}
+
+运行栈的结构设计如图。
+\todo 
+
+通过\texttt{\$gp}访问全局变量，通过\texttt{\$fp}访问局部变量和参数，通过\texttt{\$sp}访问临时变量。
+
+\subsection{函数调用的现场切换与恢复}
+
+发生函数调用时，需要在运行栈上保存好函数的返回地址、分配给局部变量的全局寄存器和当前函数的帧指针\texttt{\$fp}，并在函数调用后恢复。
+由于函数调用并不会引起基本块的分割，有些临时变量需要在函数调用后维持原本的值，因此在发生函数调用时，还需要扫描基本块的后续指令，判断哪些
+临时变量还需要用到，将这些临时变量保存在内存对应的位置。其余的不被用到的临时变量可以直接清除映射。
+
+\subsection{数组寻址的计算}
+
+从中间代码的\texttt{getelementptr}指令计算访问地址也是一个难点。本编译器中的\texttt{ElementPtr}定义如下
+\begin{minted}{java}
+public class ElementPtr extends InstructionLinkNode {
+    private final TableEntry dst; //计算出的地址的保存变量
+    private final TableEntry baseVar;//基变量
+    private final List<Operand> index = new ArrayList<>();
+    //地址运算的index
+
+    //...    
+}
+\end{minted}
+
+地址的计算公式为
+
+$Addr_{baseVar} + 4\Sigma_{i = 0} ^ {index.size} (i < baseVar.dim.size ? baseVar.dim[i] : 1) * index[i]$。
+
+其中对于\texttt{baseVar}为数组的访问要比\texttt{baseVar}是指针的访问index在最前多出一个0。
+例如
+\begin{minted}{java}
+    int a[4][5], b[5];
+
+    a[2][3] = 1;
+    //为访问a[2][3]产生的index序列为 0, 2, 3
+    //计算出的offset为4*(4*0+5*2+1*3)=4*13
+    b[3] = 1;
+    //为访问b[3]产生的index序列为 0, 3
+    //计算出的offset为4*(5*0+1*3)=4*3
+    void foo(int a[][5],int b[]){
+        a[2][3] = 1;
+        //为访问a[2][3]产生的index序列为 2, 3
+        //参数的第一维缺失，dimension中只有5
+        //计算出的offset为4*(5*2+1*3)=4*13
+        b[3] = 1;
+        //为访问b[3]产生的index序列为 3
+        //参数的第一维缺失，dimension中为空
+        //计算出的offset为4*(1*3)=4*3
+    }
+\end{minted}
+
+这个计算方法对于更高维的数组也是适用的，若要拓展数组维数，此架构并不需要修改。
+
+\section{编码后的修改}
+本阶段的主要修改是添加了代码优化后带来的修改，由于加入了图着色寄存器分配和寄存器传参，因此多出了取参数和
+注册图着色分配的寄存器这一步骤，其他部分大体上没有改动。

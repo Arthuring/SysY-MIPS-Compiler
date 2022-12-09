@@ -1,1 +1,221 @@
 \chapter{中间代码生成}
+\section{设计概述}
+
+中间代码生成的任务是将树状结构的抽象语法树，转化成线性结构的中间代码序列。本编译器的中间代码采用了llvm中间代码。
+
+本编译器将中间代码分为了12类，如表\ref{table:midcode}。
+
+生成中间代码的过程就是遍历抽象语法树，并将语法树中嵌套的\texttt{block}转化成中间代码中线性的\texttt{basicBlock}。
+
+划分基本块有助于将嵌套结构转化成线性，因此本编译器在此阶段完成基本块划分，也为之后代码优化打基础。
+
+保存中间代码的数据结构方面，采用了链表来保存中间代码序列，
+便于后续在代码优化阶段会频繁的发生代码的增删，替换操作。
+
+\begin{table}[H] 
+    \centering
+    \begin{tabular}{ccc}
+    \toprule 
+    类型 & 意义 & 样例 \\
+    \midrule
+    funcDef & 函数定义 & \texttt{define i32 @fib(i32 \%i\_1)} \\
+    VarDef & 变量定义  & \texttt{\%i\_1 = alloca i32} \\
+    BinaryOperator &  二元运算 & \texttt{\%-t15\_0 = mul i32 \%-t13\_0, \%-t14\_0}\\
+    UnaryOperator &  一元运算 & 转化为二元形式输出 \\
+    Branch & 分支 & \texttt{ br \%-t106\_0 label \%label\_11 label \%label\_9}\\
+    Jump & 跳转 & \texttt{br label \%while\_cond\_label\_10 }\\
+    Call & 函数调用 &\texttt{\%-t7\_0 = call i32 @fib(i32 \%-t9\_0) }\\
+    ElementPtr & 数组寻址  &\texttt{getelementptr [10 x i32], [10 x i32]* @a, i32 0, i32 1 }\\
+    PointerOp  &  内存操作（存取）&\texttt{\%-t35\_0 = load i32, i32* \%k\_1 }\\
+    Return & 返回 &\texttt{ret i32 0 } \\
+    PrintInt & 输出整数 & \texttt{call void @putint(i32 \%-t109\_0 ) }\\
+    PrintStr & 输出字符串 & \texttt{ call void @putch(i32 44 )    ; ','}\\
+    \bottomrule %添加表格底部粗线
+    \end{tabular}
+    \caption{中间代码表}
+    \label{table:midcode}
+\end{table}
+
+\section{设计细节}
+
+\subsection{变量的定义和初始化}
+
+对于全局变量，加入中间代码的全局变量列表，并将符号表表项中的\texttt{isDefined}设置为\texttt{true}。
+
+对于局部变量，在代码序列中加入一个\texttt{VarDef}，并将符号表表项中的\texttt{isDefined}设置为\texttt{true}。
+
+对于数组，由于数组的维数定义目前还是常量表达式，需要对数组维度定义进行常量表达式化简。
+
+对于初始值，普通变量的初始值只有一个，在进行常量表达式化简后，在代码序列中加入一个\texttt{STORE}即可。数组变量的初值
+由于存在嵌套，需要用广度优先遍历得到线性的初值序列，然后通过\texttt{STORE}依次赋值。
+
+对于常量，非数组类的常量都可以在此阶段直接替换为数，不用再以变量的形式出现，因此中间代码中不会出现对于非数组类常量的定义。
+数组类常量则是可以在此阶段直接确定通过下标访问值，但是对于通过变量访问的值则无法确定，因此仍然需要出现在中间代码中。
+
+样例：
+\begin{minted}{java}
+%i_1 = alloca i32
+store i32 2, i32* %i_1
+\end{minted}
+
+\subsection{变量的访问和赋值}
+变量表的表项掌握着变量的所有相关信息，因此可以直接将变量表的表项当作变量使用。
+由于中间代码阶段还没有寄存器分配，目前所有的变量都分配在内存上，因此对变量的访问和赋值都需要通过\texttt{PointerOp(STORE,LOAD)}进行。
+不同层定义的同名变量本质上是不同的变量，因此应该加以区分，同时也方便之后的代码优化，
+因此需要重写变量表表项的\texttt{Equal}方法,将名字和层数都相等的变量视为同一个变量。
+
+\begin{minted}{java}
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        TableEntry that = (TableEntry) o;
+        return level == that.level && Objects.equals(name, that.name);
+    }
+\end{minted}
+
+变量的访问需要先通过符号表查找被标记为\texttt{isDefined}的变量，
+然后新增一个临时变量来保存变量的值，在代码序列中加入一个\texttt{PointerOp(LOAD)}，返回这个临时变量。
+
+对变量的赋值可以是赋值一个立即数，也可以赋值一个临时变量中保存的结果，先通过符号表查找被标记为\texttt{isDefined}的变量，
+然后在代码序列中加入一个\texttt{PointerOp(STORE)}。
+
+\subsection{表达式计算}
+
+首先表达式可以先经过一次常量化简，将常量都替换成立即数。
+表达式计算的基本逻辑是将已有的变量或立即数作为操作数，然后新增一个临时变量来存放表达式的计算结果，并返回这个存结果的临时变量。
+调用时，递归地调用即可。
+
+\todo 加入一个表达式计算的图。
+
+\subsection{控制流（循环和分支）}
+\subsubsection{分支}
+对于分支，也就是\texttt{if else}语句：
+
+\begin{minted}{java}
+    if(cond){
+        //ifStmt
+    }else{
+        //elseStmt
+    }
+    //end, new basicBlock
+\end{minted}
+按照如下方式生成
+
+\begin{minted}{java}
+    temp = cond;//temp保存表达式cond的计算结果
+    br temp label ifStmt_label label elseStmt_label
+    elseStmt_label:
+        //elseStmt
+        br label newBasicBlock_label
+    ifStmt_label:
+        //ifStmt
+    newBasicBlock_label:
+        //end, new basicBlock 分支结束，新增基本块
+\end{minted}
+
+\subsubsection{循环}
+对于如下循环：
+\begin{minted}{java}
+    while(cond){
+        //whileStmt
+    }
+    //end, new basicBlock
+\end{minted}
+
+按照如下方式生成
+
+\begin{minted}{java}
+    whileCond_begin:
+    temp = cond;//temp保存表达式cond的计算结果
+    br temp label whileBody_begin label newBasicBlock_label
+    whileBody_begin:
+        //whileStmt
+        br label whileCond_begin
+    newBasicBlock_label:
+        //end, new basicBlock 循环结束，新增基本块
+\end{minted}
+
+\subsection{数组的访问}
+数组的访问需要先通过一条\texttt{ElementPtr}计算出指向访问位置的地址，再通过\texttt{PointerOp}来存取数组中的值。
+
+此处需要注意的是普通数组和函数参数中的数组访问有所区别。
+函数参数中的数组的第一维度信息缺失，实质上是一个指向原数组的指针，比数组少一维。
+
+\subsection{短路求值}
+
+\subsubsection{分支的\&\&短路}
+分支的\&\&短路可以变换为
+\begin{minted}{java}
+    //变换前
+    if (a && b) {
+        //ifStmt
+    } else {
+        //elseStmt
+    }
+    //变换后
+    if (a) {
+        if (b){
+            //ifStmt
+        } else {
+            //elseStmt
+        }
+    } else {
+        //elseStmt
+    }
+
+\end{minted}
+
+
+\subsubsection{分支的||短路}
+
+分支的||短路可以变换为
+\begin{minted}{java}
+    //变换前
+    if (a || b) {
+        //ifStmt
+    } else {
+        //elseStmt
+    }
+    //变换后
+    if (a) {
+        //ifStmt
+    } else {
+        if (b){
+            //ifStmt
+        } else {
+            //elseStmt
+        }
+    }
+
+\end{minted}
+
+
+\subsubsection{循环的短路}
+
+若循环存在短路求值，则可进行以下转化
+\begin{minted}{java}
+    //变换前
+    while (cond) {
+        //whileStmt
+    }
+    //变换后
+    while (1) {
+        if (cond) {
+            //whileStmt
+        } else {
+            break;
+        }
+    }
+\end{minted}
+
+
+\section{编码后的修改}
+由于中间代码的设计不同，代码生成的实现方式非常多样，因此此处的bug大多都是个性问题，数量多且关乎细节，此处抽象的列举几处修改。
+\begin{enumerate}
+    \item printf中参数的计算和字符串输出顺序问题，应先算完所有的参数再一起输出，
+    不然可能会出现参数中包含函数调用，输出内容被函数内的输出阻断的效果。
+    \item 短路求值转化时block种类问题。
+    \item 短路求值转化时符号表问题。
+    \item 短路求值转化未将后续使用的node替换为转化后的node导致条件丢失。
+    \item 定义使用顺序问题，使用了本层后续定义的变量。
+\end{enumerate}

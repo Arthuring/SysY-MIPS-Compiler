@@ -42,19 +42,19 @@ public class TableEntry implements Operand {
         }
     };
 
-    public final RefType refType;
-    public final ValueType valueType;
-    public final String name;
-    public ExprNode initValue = null;
-    public List<ExprNode> initValueList = null;
-    public List<ExprNode> dimension;
-    public final int level;
-    public final boolean isConst;
-    public final boolean isGlobal;
+    public final RefType refType;//包括ITEM-普通变量,ARRAY-数组,POINTER-指针,三种类型
+    public final ValueType valueType;//包括INT-整数,VOID-空，两种类型
+    public final String name;//变量名
+    public ExprNode initValue = null;//初始值
+    public List<ExprNode> initValueList = null;//数组初始值
+    public List<ExprNode> dimension;//数组每一维的大小
+    public final int level;//定义处的层数
+    public final boolean isConst;//是否是常量
+    public final boolean isGlobal;//是否是全局变量
     public int address = 0;
     public boolean isTemp = false;
     public boolean defined = false;
-    public boolean isParameter = false;
+    public boolean isParameter = false;//是否是函数参数;
 
     public List<ExprNode> getDimension() {
         return dimension;

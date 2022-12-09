@@ -1,1 +1,44 @@
 \chapter{代码优化}
+\section{体系结构无关优化}
+
+\subsection{流图建立}
+流图建立是所有优化的基础，在本编译器中，中间代码生成部分就已经完成了基本块的划分，
+因此在此只需要把他们的关系建立起来即可。
+
+流程如下
+\begin{enumerate}
+    \item 首先在函数体中维护一个从\texttt{basicBlockLabel}到\texttt{basicBlock}的\texttt{Map}。
+    \item 在函数体最后新增一个空的出口基本块。
+    \item 在每个基本块内部维护前驱基本块标签集和后继基本块标签集两个\texttt{Set}。
+    \item 若基本块最后一条中间代码既不是分支也不是跳转也不是返回，则将此基本块直接相连的下一个基本块加入后继集。同步维护下一个基本块的前驱集。
+    \item 若基本块的最后一条是跳转，则将跳转目标Label加入后继集，同步维护目标基本块的前驱集。
+    \item 若基本块最后一条是分支，则将真假两个目标Label加入后继集，并同步维护目标基本块的前驱集。
+    \item 若基本块最后一条指令是返回，则将出口块加入后继集。
+    \item 若基本块是最后一个基本块，则将出口加入后继集。
+\end{enumerate}
+
+\subsection{合并基本块}
+
+\subsection{窥孔优化}
+
+\subsection{到达定义分析}
+
+\subsection{常量传播}
+
+\subsection{复写传播}
+
+\subsection{基本块内部的死代码删除}
+
+\subsection{活跃变量分析}
+
+\subsection{跨基本块的死代码删除}
+
+\subsection{循环结构优化}
+
+\section{体系结构相关优化}
+
+\subsection{图着色寄存器分配}
+
+\subsection{乘除优化}
+
+\subsection{指令选择优化}
