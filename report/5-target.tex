@@ -4,7 +4,14 @@
 此阶段将体系结构无关的中间代码翻译成MIPS体系结构的目标代码。程序的控制流，计算指令等已经在中间代码生成阶段完成，
 对于单条中间代码如何翻译成目标代码难度不大。目标代码生成的难点主要集中在寄存器分配和管理，运行时的存储管理，切换和恢复运行现场。
 
-本编译器生成目标代码的流程如图。\todo
+本编译器生成目标代码的流程如图\ref{fig:translator}。
+
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[width=0.8\linewidth]{img/translator.png}
+	\caption{生成目标代码基本流程}
+	\label{fig:translator}
+\end{figure}
 
 大致步骤如下：
 \begin{enumerate}
@@ -49,9 +56,14 @@ public class RegMap {
 若该寄存器的值的\texttt{Dirty}为\texttt{true}，则需要写回对应内存。
 
 \subsection{运行时存储管理}
+运行栈的结构设计如图\ref{fig:stack}。
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[width=0.5\linewidth]{img/stack.png}
+	\caption{运行栈结构设计}
+	\label{fig:stack}
+\end{figure}
 
-运行栈的结构设计如图。
-\todo 
 
 通过\texttt{\$gp}访问全局变量，通过\texttt{\$fp}访问局部变量和参数，通过\texttt{\$sp}访问临时变量。
 

@@ -85,7 +85,14 @@ store i32 2, i32* %i_1
 表达式计算的基本逻辑是将已有的变量或立即数作为操作数，然后新增一个临时变量来存放表达式的计算结果，并返回这个存结果的临时变量。
 调用时，递归地调用即可。
 
-\todo 加入一个表达式计算的图。
+抽象语法树赋值语句表达式转化为中间代码的过程大致如图\ref{fig:expr}。
+
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[width=0.8\linewidth]{img/expr.png}
+	\caption{表达式转化为中间代码过程}
+	\label{fig:expr}
+\end{figure}
 
 \subsection{控制流（循环和分支）}
 \subsubsection{分支}

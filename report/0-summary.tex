@@ -1,1 +1,22 @@
 \chapter{总体架构}
+本编译器的总体架构如\ref{fig:summary}。
+
+\begin{figure}[htbp]
+	\centering
+	\includegraphics[width=0.8\linewidth]{img/summary.png}
+	\caption{编译器总体架构}
+	\label{fig:summary}
+\end{figure}
+
+本编译器由以下几个主要模块组成
+\begin{itemize}
+    \item 词法分析器：读入源代码，进行词法分析，输出一个token流。
+    \item 语法分析器：利用语法分析器递归下降分析token流，得到具体语法树，遇到错误时添加到全局错误表。
+    \item 语义分析器：利用语义分析器进行符号表的管理，并得到抽象语法树，遇到错误时添加到全局错误表。
+    \item 中间代码生成器及优化器：得到抽象语法树后根据不同的语法节点类型生成llvm中间代码，并且可以配置是否开启优化。
+    \item 目标代码生成器及优化器：通过llvm中间代码生成mips目标代码，可以配置选择是否开启优化。
+\end{itemize}
+
+随后的章节将会介绍这些模块的设计细节。
+
+

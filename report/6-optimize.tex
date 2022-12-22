@@ -1,4 +1,19 @@
 \chapter{代码优化}
+
+\section{设计概述}
+
+本编译器实现了以下优化：
+\begin{itemize}
+    \item 窥孔优化
+    \item 常量传播
+    \item 复写传播
+    \item 死代码删除
+    \item 循环结构优化
+    \item 图着色寄存器分配
+    \item 指令选择优化
+    \item 乘除优化
+\end{itemize}
+
 \section{体系结构无关优化}
 
 \subsection{流图建立}
@@ -19,26 +34,314 @@
 
 \subsection{合并基本块}
 
+这个步骤的目标是尽量减少基本块的数量，将空基本块移除，将可以合并的基本块合并。
+
+若一个基本块内没有任何中间代码，则将其移除，同时保证其前驱和后继之间的正确关系。
+
+若一个基本块的前驱只有唯一基本块，且该前驱基本块也只有唯一后继基本块，那么此基本块可以和其前驱基本块合并成一个基本块。
+
+减少基本块的数量可以为后续优化带来便利。
+
 \subsection{窥孔优化}
+
+\subsubsection{单条指令优化}
+
+一些指令可以转化为计算代价更小的一元运算例如
+
+\texttt{t1 = t2 * 1, t1 = t2 / 1, t1 = t2 \% 1}
+
+转化为
+
+\texttt{t1 = t2, t1 = t2, t1 = 0}。
+
+从而达到削减运算强度的目的。
+
+\subsubsection{连续的访存指令优化}
+
+如果出现先发生\texttt{LOAD}再发生\texttt{STORE}并且取和存对应的内存空间一致的话，就可以删掉后面的\texttt{STORE}指令，减少一次访存。
+
+例如
+\begin{minted}{java}
+    //优化前
+    t1 = LOAD a
+    STORE t1, a
+    //优化后
+    t1 = LOAD a
+\end{minted}
 
 \subsection{到达定义分析}
 
+到达定义分析是常量传播和复写传播的基础。目的是计算出可以到达某个基本块的所有定义点。由于本编译器中所有的临时变量
+均不跨越基本块，因此对于跨基本块的到达定义分析只分析函数中的参数和局部非数组变量。全局变量由于跨函数，因此在分析中不考虑。
+
+算法步骤如下：
+\begin{enumerate}
+    \item 首先遍历函数中的所有中间代码，找出局部变量和参数的所有定义点，并构造映射。
+    \item 计算单个基本块的\texttt{gen}和\texttt{kill}，初始化两个空集合\texttt{genBlock}和\texttt{killBlock}，
+    从基本块的最后一条中间代码开始，如果中间代码\texttt{instr}是定义点，则执行
+
+    $genBlock = genBlock \cup (\{instr\} - killBlock)$，
+
+    $killBlock = killBlock \cup kill_{instr}$
+
+    一直迭代到基本块的第一条中间代码，得到的\texttt{genBlock}和\texttt{killBlock}即为基本块的\texttt{gen}和\texttt{kill}
+
+    \item 初始化$in[B_1] = \emptyset$ 从第一个基本块开始，按照公式
+    $\displaystyle  in[B] =\cup_{B'为B的前驱} out[B'] $
+
+    $out[B] = gen[B] \cup (in[B] - kill[B])$
+
+    迭代计算，直到所有的\texttt{in}，\texttt{out}集合不再发生变化。
+
+\end{enumerate}
+
+由此得到每个基本块的\texttt{in}和\texttt{out}，之后就可以参照这些信息，进行常量传播和复写传播。
+
 \subsection{常量传播}
+
+考虑如下代码
+\begin{minted}{c}
+    int a = 3, b = 4;
+    int i = a * b;
+
+    if(i == 0){
+        while(i < 1000){
+            i = i + 1;
+        }
+    }
+    printf("%d", i);
+\end{minted}
+
+可以发现，这里的变量\texttt{i}的值可以直接被替换为12，不仅能减少一条乘法指令，还能判断出分支的跳转方向，
+为死代码删除提供可能。常量传播本身可以削减运算强度，并且和死代码删除等其他优化结合，可以发挥出1+1>2的效果。
+
+常量传播算法参考龙书的常量传播算法，定义一种\texttt{Value}类型，\texttt{Value.type} 有\texttt{UNDEF}（未知），\texttt{CONST}（常量），\texttt{NAC}（非常量）三种，
+\texttt{Value.constValue}在\texttt{Value.type = CONST}时有意义，表示常量的具体数值。常量传播的大体步骤为，先对函数中的所有定义点建立
+定义点到\texttt{Value}的映射，也就是判断是否此定义点会产生一个常量定义。建立映射后，在每个变量的使用处，就可以根据到达定义分析得到的
+可以到达此使用点的定义和上一步得到的映射，判断这次使用是否是常量，如果是常量，则可以将这次对变量的使用直接替换为立即数。
+
+具体算法如下：
+\begin{enumerate}
+    \item 初始化所有的定义点映射\texttt{Value}为\texttt{UNDEF}。
+    \item 遍历每个基本块B，初始化\texttt{reach}集合为\texttt{in[B]}。
+    \item 从基本块的第一条中间代码开始向后遍历，若当前指令是定义点，则执行如下操作：
+             \begin{enumerate}
+                \item 计算定义值的类型，若此语句是输入，函数调用，则定义点映射的\texttt{Value.type}为NAC，若此语句是一元运算，如\texttt{a=b}，则
+                    根据\texttt{reach}集合中的定义点查找\texttt{b}的映射，该定义点的映射与\texttt{b}的映射一致，若此语句是二元运算，如\texttt{a = b + c}，同理查找\texttt{b}和\texttt{c}的映射，
+                    当\texttt{b}和\texttt{c}中存在一个以上\texttt{NAC}时，\texttt{a}映射到\texttt{NAC}，当\texttt{b}和\texttt{c}都为\texttt{UNDEF}时，\texttt{a}映射到\texttt{UNDEF}，其余情况\texttt{a}映射到对应的\texttt{CONST}。
+                \item 进行集合运算$reach = reach - kill_{instr}$ 
+                
+                                $reach = reach \cup {instr}$    
+             \end{enumerate}
+    \item 若映射存在变化，则重复步骤3。
+    \item 遍历所有语句，对于变量使用，参照映射表和到达定义，将所有定义此变量的定义点进行\texttt{merge}操作，若得到\texttt{CONST}，则可以替换成常量。         
+\end{enumerate}
+
+\texttt{merge}操作的算法如下：
+
+\begin{minted}{java}
+   public static Value merge(Value a, Value b) {
+        if (a.valueType() == Value.ValueType.UNDEF) {
+            return b;
+        } else if (b.valueType() == Value.ValueType.UNDEF) {
+            return a;
+        } else if (a.valueType() == Value.ValueType.CONS
+                && b.valueType() == Value.ValueType.CONS
+                && a.constValue().equals(b.constValue())) {
+            return a;
+        } else {
+            return new Value(Value.ValueType.NAC, null);
+        }
+    }
+\end{minted}
 
 \subsection{复写传播}
 
+复写传播与常量传播类似，常量传播是将定义点映射到常量，而复写传播则是将定义点映射到变量。
+如果一个定义点的定义值是单独的变量，例如\texttt{t1 = LOAD a, t1 = a} 则可以建立定义点到变量\texttt{a}的映射。
+为了简化算法保证正确性，本编译器直接采用了变量到变量的映射，而不采用定义点到变量的映射。
+算法步骤如下
+
+\begin{enumerate}
+    \item 初始化第一个基本块的\texttt{in}为空集。
+    \item 遍历每个基本块，将基本块入口处存在的映射\texttt{Map}初始化为当前基本块的\texttt{in}。
+    \item 从第一条开始遍历，若存在形如\texttt{t1 = LOAD a, t1 = a}的复写赋值，使用算法\texttt{getValue}计算映射值，
+    在\texttt{Map}中添加映射。
+    \item 若为其他类型的赋值或是函数调用，\texttt{getint}，则删除变量的映射。
+    \item 遍历到最后一条中间代码，此时剩余的映射就是基本块的\texttt{out}。
+    \item 之后沿流图传播\texttt{out}，求下一个基本块的\texttt{in}，基本块的\texttt{in}为所有前驱基本块\texttt{out}的交集。
+    \item 不断重复上述过程，直到所有基本块的\texttt{in}和\texttt{out}不再变化。
+    \item 再次遍历所有中间代码，在所有的变量的定义点或使用点利用\texttt{getValue}计算映射值，若可以进行复写传播，则进行替换即可。
+\end{enumerate}
+
+getValue算法如下
+
+\begin{minted}{java}
+public static TableEntry getValue(TableEntry src, Map<TableEntry, TableEntry> map) {
+        TableEntry value = src;//TableEntry 表示变量
+        while (map.containsKey(value)) {
+            value = map.get(value);
+        }
+        return value;
+    }
+ \end{minted}
+
 \subsection{基本块内部的死代码删除}
+\subsubsection{基本块内部的临时变量死代码}
+经过常量传播和复写传播，基本块内部会产生很多临时变量不再被使用，产生死代码。
+
+要删除这类死代码比较容易，只需要从基本块的最后一条中间代码开始，对临时变量进行引用计数，
+当遍历进行到某一定义临时变量的语句时，若发现该临时变量的引用计数为0，则可以直接移除这一条语句。
+
+\subsubsection{不可达代码}
+有些循环和分支的判断条件经过常量传播可以变为常量，从而确定控制流方向，进而产生不可达基本块。
+首先将这些已经可以确定的方向的分支语句替换成跳转语句，并修改流图。
+遍历基本块，找出没有前驱基本块的基本块进行删除即可。
 
 \subsection{活跃变量分析}
 
+活跃变量分析是跨基本块的死代码删除和图着色的基础。活跃变量分析的顺序与到达定义分析的顺序相反，从最后一基本块开始。
+
+算法步骤如下
+
+\begin{enumerate}
+    \item  首先计算每个基本块的\texttt{def}和\texttt{use}，一个赋值语句的\texttt{use}先发生，所有定义在使用前的变量算作\texttt{def}，使用在定义前的算\texttt{use}。
+    \item  从最后一个基本块开始，初始化\texttt{out[B]}为空。
+    \item  按照公式
+            $out[B] = \cup_{B'为B后继基本块}in[B']$
+
+            $in[B] = use[B] \cup (out[B] - def[B])$
+
+            计算基本块的\texttt{in}和\texttt{out}
+    \item  重复上述过程，直到每个基本块的\texttt{in}和\texttt{out}不发生变化。        
+\end{enumerate}
+
+至此得到基本块的活跃变量分析的\texttt{in}和\texttt{out}。
+
 \subsection{跨基本块的死代码删除}
+
+如果某一定义点定义的变量在之后的程序运行过程中都不会被使用，则可以将这一条赋值语句删除。
+在活跃变量分析的基础上，可以遍历每个基本块，进行死代码删除，具体算法如下。
+\begin{enumerate}
+    \item  初始化\texttt{liveVar}集合为基本块B的\texttt{out[B]}。
+    \item  从基本块的最后一条中间代码开始，执行如下算法。
+    \begin{enumerate}
+        \item 若这条中间代码定义了一个变量且该变量不在\texttt{liveVar}中，且该语句不是函数调用和\texttt{getint}，则移除这条语句。
+        \item 若这条中间代码定义了某个变量，则将其从\texttt{liveVar}中移除。
+        \item 如果语句没有被移除，若这条中间代码使用了某个变量则将其加入\texttt{liveVar}。
+    \end{enumerate}
+\end{enumerate}
+
 
 \subsection{循环结构优化}
 
+将\texttt{while}循环改写成 \texttt{if-do-while}的结构可以减少跳转语句的执行次数，例如
+
+\begin{minted}{java}
+//优化前
+while_cond_label_10:
+%-t105_0 = load i32, i32* %i_1
+%-t106_0 = icmp slt i32 %-t105_0, 10
+br %-t106_0 label %while_body_label_11 label %label_9
+while_body_label_11:
+//whileBody 
+//jump
+br label %while_cond_label_10
+label_9:
+//------------------------------------------------------
+//优化后
+while_cond_label_10:
+%-t105_0 = load i32, i32* %i_1
+%-t106_0 = icmp slt i32 %-t105_0, 10
+br %-t106_0 label %while_body_label_11 label %label_9
+while_body_label_11:
+//whileBody
+//cond
+%-t105_0 = load i32, i32* %i_1
+%-t115_0 = icmp slt i32 %-t113_0, 10
+//branch
+br %-t115_0 label %while_body_label_11 label %label_9
+label_9:
+ \end{minted}
+ 原本执行一次循环需要经历一次分支和一次跳转，现在除了第一次外，只需要经历一次分支，原本的$2n+1$次跳转转化成$n+1$跳转。
 \section{体系结构相关优化}
 
 \subsection{图着色寄存器分配}
 
+本编译器仅对于局部变量和参数进行图着色寄存器分配，将\texttt{\$s0-\$s7}八个寄存器设为可分配寄存器。图着色的主要难点在于
+如何建立冲突图和如何舍弃无法被分配的变量。
+
+\subsubsection{冲突图建立}
+
+本编译器判断两变量冲突的标准是A变量定义点B变量活跃，则AB冲突。
+
+建立冲突图前，已经完成活跃变量分析。遍历基本块，按照如下算法建立冲突图。
+\begin{enumerate}
+    \item 将\texttt{liveVar}集合初始化为基本块的\texttt{out}
+    \item 从基本块中的最后一条中间代码开始，从后向前遍历，并执行如下操作
+            \begin{enumerate}
+                \item 若该条中间代码是定义了一个变量，则将这个变量移除出\texttt{liveVar}。
+                \item 当前\texttt{liveVar}中所有变量和被定义变量冲突，加入冲突图。
+                \item 将这条中间代码使用的变量加入\texttt{liveVar}
+            \end{enumerate}
+\end{enumerate}
+
+\subsubsection{舍弃变量}
+
+按照教材上的算法进行寄存器分配，在不得不舍弃变量时，舍弃cost最小的变量，cost计算公式如下
+\begin{equation*}
+    cost = \frac{2^{level}}{out}
+\end{equation*}
+
+其中level是变量定义的深度，out是变量的冲突图上的出度。
+    
+
 \subsection{乘除优化}
 
+\subsubsection{乘法优化}
+乘法按照如下规则优化
+\begin{itemize}
+    \item 若两操作数都是变量，则无法优化。
+    \item 其中一个操作数为立即数时
+        \begin{itemize}
+            \item 若立即数的绝对值为2的幂次，则用移位指令代替乘法。
+            \item 若立即数的绝对值为2的幂次加减1，则用移位指令和一条加减指令代替乘法。
+            \item 若立即数为负数，则将结果取负数。
+        \end{itemize}
+\end{itemize}
+
+\subsubsection{除法优化}
+
+除法优化参考论文\textit{Division by Invariant Integers using Multiplication}，以下为符号定义如\ref{fig:symbol}，
+使用到的两个重要算法如\ref{fig:div}和\ref{fig:choose}。
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.6\linewidth]{img/symbol.png}
+	\caption{符号定义}
+	\label{fig:symbol}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.6\linewidth]{img/div.png}
+	\caption{除法优化}
+	\label{fig:div}
+\end{figure}
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.6\linewidth]{img/choose.png}
+	\caption{choose-multiplier算法}
+	\label{fig:choose}
+\end{figure}
+
+\subsubsection{取模优化}
+模运算可以用先进行除法运算计算出商，再用被除数减商乘以除数算得余数。
+
 \subsection{指令选择优化}
+
+\begin{enumerate}
+    \item 可以用xor sltu取代sne，xor sltu xori取代seq，其他比较指令同理可以用加减指令和slt取代。
+    \item 可以用mul rd,rs,rt 直接执行乘法，不用mflo。
+\end{enumerate}
