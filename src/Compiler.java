@@ -161,7 +161,7 @@ public class Compiler {
 
     public static void main(String[] args) throws Exception {
 
-        mipsTest("testfile.txt", "output.txt");
+        optimizeTest("testfile.txt", "output.txt");
 
     }
 }
